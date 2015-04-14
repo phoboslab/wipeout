@@ -75,8 +75,9 @@ Wipeout.prototype.animate = function() {
 			.add(lookAtPos.clone().multiplyScalar(1-damping));
 		this.splineCamera.lookAt(this.splineCamera.currentLookAt);
 
-		// Roll into corners - there's probably an easier way to do this. This here takes
-		// the angle between the current camera position and the current look at
+		// Roll into corners - there's probably an easier way to do this. This 
+		// takes the angle between the current camera position and the current
+		// lookAt, applies some damping and rolls the camera along its view vector
 		var cn = cameraPos.sub(this.splineCamera.position);
 		var tn = lookAtPos.sub(this.splineCamera.currentLookAt);
 		var roll = (Math.atan2(cn.z, cn.x) - Math.atan2(tn.z, tn.x));
@@ -107,7 +108,6 @@ Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 	for( var i = 0; i < this.sprites.length; i++ ) {
 		this.sprites[i].rotation.y = camera.rotation.y;
 	}
-	// console.log(camera.rotation.y)
 };
 
 
@@ -171,7 +171,7 @@ Wipeout.UV = Struct.create(
 	Struct.uint8('v')
 );
 
-Wipeout.ObjectHeader = Struct.create( // .PRM Files
+Wipeout.ObjectHeader = Struct.create(
 	Struct.string('name', 15),
 	Struct.skip(1),
 	Struct.uint16('vertexCount'),
@@ -396,7 +396,7 @@ Wipeout.prototype.readObject = function(buffer, offset) {
 
 	var polygons = [];
 	for( var i = 0; i < header.polygonCount; i++ ) {
-		// Peak into the header first to select the right Polygon type
+		// Peek into the header first to select the right Polygon type
 		var polygonHeader = Wipeout.PolygonHeader.readStructs(buffer, offset, 1)[0];
 
 		var PolygonType = Wipeout.Polygon[polygonHeader.type];
