@@ -1,6 +1,6 @@
 # WipEout (PSX) Model Viewer
 
-Source code for the [WipEout Model Viewer](http://phboslab.org/wipeout/).
+Source code for the [WipEout Model Viewer](http://phoboslab.org/wipeout/).
 
 This repository does not contain the actual WipEout data files. You have to copy the `WIPEOUT/` directory from the original CD.
 
