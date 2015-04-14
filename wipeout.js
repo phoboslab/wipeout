@@ -292,7 +292,7 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE] = Struct.create(
 );
 
 
-// .TIM Files (Big Endian!) -------------------------------
+// .TIM Files (Little Endian!) -------------------------------
 Wipeout.IMAGE_TYPE = {
 	PALETTED_4_BPP: 0x08,
 	PALETTED_8_BPP: 0x09,
