@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>WipEout (PSX) – Model Viewer</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #ccc;
+				font-family: Monospace;
+				font-size: 13px;
+				background-color: #050505;
+				margin: 0px;
+			}
+			a {
+				color: #41afff;
+				text-decoration: none;
+			}
+			a:hover {
+				text-decoration: underline;	
+			}
+			canvas {
+				display: block;
+			}
+			#head {
+				position: absolute;
+				left: 0;
+				right: 0;
+				top: 0;
+				padding: 2px 8px;
+				xheight: 24px;
+				background-color: #050505;
+			}
+			#headRight {
+				float:right;
+				padding: 4px 8px 0 0;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="head">
+			WipEout (PSX) – Model Viewer 
+			&nbsp; Scene: <select id="sceneSelect"></select>
+			&nbsp; Camera: <a href="#" id="freeCam">Free</a> / <a href="#" id="flyCam">Fly-Through</a>
+			&nbsp; Music: <a href="#" id="musicPlay">Play</a> / <a href="#" id="musicPause">Pause</a>
+			<div id="headRight">
+				Read: 
+				<a href="http://phoboslab.org/log/2015/04/reverse-engineering-wipeout-psx">
+					Reverse Engineering WipEout
+				</a>
+			</div>
+		</div>
+		<div id="container"></div>
+
+		<script src="three.js"></script>
+		<script src="orbit-controls.js"></script>
+		<script src="js-struct.js"></script>
+		<script src="wipeout.js"></script>
+
+		<script>
+			var viewer = new Wipeout('container', window.innerWidth, window.innerHeight);
+
+			// Build the Scene Selection Dropdown
+			var loadingFunctions = [];
+			var select = document.getElementById('sceneSelect');
+
+			select.addEventListener('change', function(ev){
+				var idx = ev.currentTarget.value;
+				loadingFunctions[idx](viewer);
+			}, true);
+
+			var addOption = function(name, func) {
+				var option = document.createElement('option');
+				option.value = loadingFunctions.length;
+				option.innerHTML = name;
+				select.appendChild(option);
+				
+				loadingFunctions.push(func);
+			};
+
+			for( var i = 0; i < Wipeout.Tracks.length; i++ ) {
+				var track = Wipeout.Tracks[i];
+
+				addOption(track.name, (function(track, viewer){
+					viewer.clear();
+					viewer.loadTrack(track.path, track.rangesForCameraSpline);
+				}).bind(null, track));
+			}
+
+			addOption('- - - -', function(){});
+
+			addOption('Ships', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					textures: 'WIPEOUT/COMMON/ALLSH.CMP',
+					objects: 'WIPEOUT/COMMON/ALLSH.PRM'
+				}, function(files) { viewer.createScene(files, {scale: 16, space:9600}); });
+			});
+
+			addOption('Team Logos', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					objects: 'WIPEOUT/COMMON/TEAMS.PRM'
+				}, function(files) { viewer.createScene(files, { space:12800}); });
+			});
+
+			addOption('Pilot Logos', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					textures: 'WIPEOUT/COMMON/PILOT.CMP',
+					objects: 'WIPEOUT/COMMON/PILOT.PRM'
+				}, function(files) { viewer.createScene(files, { space:12800}); });
+			});
+
+			document.getElementById('freeCam').addEventListener('click', function(ev){
+				viewer.activeCameraMode = 'orbit';
+				ev.preventDefault();
+			}, true);
+
+			document.getElementById('flyCam').addEventListener('click', function(ev){
+				viewer.activeCameraMode = 'fly';
+				ev.preventDefault();
+			}, true);
+
+			var music = (new Audio()).canPlayType('audio/webm; codecs=vorbis')
+				? new Audio('soundtrack/cold-comfort.ogg')
+				: new Audio('soundtrack/cold-comfort.mp3');
+			music.loop = true;
+
+			document.getElementById('musicPlay').addEventListener('click', function(ev){
+				music.play();
+				ev.preventDefault();
+			}, true);
+
+			document.getElementById('musicPause').addEventListener('click', function(ev){
+				music.pause();
+				ev.preventDefault();
+			}, true);
+
+			// Load the first scene in our list
+			loadingFunctions[0](viewer);
+		</script>
+	</body>
+</html>
