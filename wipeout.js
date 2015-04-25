@@ -2,7 +2,7 @@
 var Wipeout = function(containerId, width, height){
 	this.renderer = new THREE.WebGLRenderer( { antialias: true } );
 	this.renderer.setSize( width, height );
-	this.renderer.setClearColor( 0x111111 );
+	this.renderer.setClearColor( 0x000000 );
 	this.container = document.getElementById( containerId );
 	this.container.appendChild( this.renderer.domElement );
 	this.width = width;
