@@ -22,7 +22,7 @@ Wipeout.prototype.clear = function() {
 	// Add Camera and controls for orbit
 	this.camera = new THREE.PerspectiveCamera( 45, this.width / this.height, 64, 1048576 );
 	this.camera.position.set( 0, 10000, 50000 );
-	this.camera.eulerOrder = 'YZX';
+	this.camera.rotation.order = 'YZX';
 
 	this.controls = new THREE.OrbitControls( this.camera, this.renderer.domElement );
 	this.controls.damping = 0.2;
@@ -32,7 +32,7 @@ Wipeout.prototype.clear = function() {
 	this.splineCamera = new THREE.PerspectiveCamera( 84, window.innerWidth / window.innerHeight, 64, 1048576 );
 	this.splineCamera.currentLookAt = new THREE.Vector3(0,0,0);
 	this.splineCamera.roll = 0;
-	this.splineCamera.eulerOrder = 'YZX';
+	this.splineCamera.rotation.order = 'YZX';
 
 	this.cameraSpline = null;
 	this.sceneMaterial = {};
