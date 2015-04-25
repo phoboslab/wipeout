@@ -20,7 +20,7 @@ Wipeout.prototype.clear = function() {
 	this.sprites = [];
 
 	// Add Camera and controls for orbit
-	this.camera = new THREE.PerspectiveCamera( 45, this.width / this.height, 64, 1048576 );
+	this.camera = new THREE.PerspectiveCamera( 45, this.width / this.height, 64, 2048576 );
 	this.camera.position.set( 0, 10000, 50000 );
 	this.camera.rotation.order = 'YZX';
 
@@ -29,7 +29,7 @@ Wipeout.prototype.clear = function() {
 	this.controls.zoomSpeed = 2;
 
 	// Add Camera for fly through
-	this.splineCamera = new THREE.PerspectiveCamera( 84, window.innerWidth / window.innerHeight, 64, 1048576 );
+	this.splineCamera = new THREE.PerspectiveCamera( 84, window.innerWidth / window.innerHeight, 64, 2048576 );
 	this.splineCamera.currentLookAt = new THREE.Vector3(0,0,0);
 	this.splineCamera.roll = 0;
 	this.splineCamera.rotation.order = 'YZX';
@@ -862,7 +862,7 @@ Wipeout.prototype.loadTrack = function( path, rangesForCameraSpline ) {
 	this.loadBinaries({
 		textures: path+'/SKY.CMP',
 		objects: path+'/SKY.PRM'
-	}, function(files) { that.createScene(files, {scale:16, move:{x:0, y:80000, z:0}}); });
+	}, function(files) { that.createScene(files, {scale:48}); });
 
 	this.loadBinaries({
 		textures: path+'/LIBRARY.CMP',
