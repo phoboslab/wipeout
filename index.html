@@ -69,27 +69,38 @@
 				loadingFunctions[idx](viewer);
 			}, true);
 
-			var addOption = function(name, func) {
+			var addGroup = function(parent, name) {
+				var group = document.createElement('optgroup');
+				group.label = name;
+				parent.appendChild(group);
+				return group;
+			}
+
+			var addOption = function(parent, name, func) {
 				var option = document.createElement('option');
 				option.value = loadingFunctions.length;
 				option.innerHTML = name;
-				select.appendChild(option);
+				parent.appendChild(option);
 				
 				loadingFunctions.push(func);
 			};
 
-			for( var i = 0; i < Wipeout.Tracks.length; i++ ) {
-				var track = Wipeout.Tracks[i];
 
-				addOption(track.name, (function(track, viewer){
+			// WipEout
+			var groupWipeout = addGroup(select, 'WipEout');
+
+			for( var i = 0; i < Wipeout.Tracks.Wipeout.length; i++ ) {
+				var track = Wipeout.Tracks.Wipeout[i];
+
+				addOption(groupWipeout, track.name, (function(track, viewer){
 					viewer.clear();
 					viewer.loadTrack(track.path, track.rangesForCameraSpline);
 				}).bind(null, track));
 			}
 
-			addOption('- - - -', function(){});
+			addOption(groupWipeout, '', function(){});
 
-			addOption('Ships', function(viewer){
+			addOption(groupWipeout, 'Ships', function(viewer){
 				viewer.clear();
 				viewer.loadBinaries({
 					textures: 'WIPEOUT/COMMON/ALLSH.CMP',
@@ -97,14 +108,14 @@
 				}, function(files) { viewer.createScene(files, {scale: 16, space:9600}); });
 			});
 
-			addOption('Team Logos', function(viewer){
+			addOption(groupWipeout, 'Team Logos', function(viewer){
 				viewer.clear();
 				viewer.loadBinaries({
 					objects: 'WIPEOUT/COMMON/TEAMS.PRM'
 				}, function(files) { viewer.createScene(files, { space:12800}); });
 			});
 
-			addOption('Pilot Logos', function(viewer){
+			addOption(groupWipeout, 'Pilot Logos', function(viewer){
 				viewer.clear();
 				viewer.loadBinaries({
 					textures: 'WIPEOUT/COMMON/PILOT.CMP',
@@ -112,6 +123,48 @@
 				}, function(files) { viewer.createScene(files, { space:12800}); });
 			});
 
+			addOption(groupWipeout, '', function(){});
+
+
+			// WipEout 2097/xl
+			var groupWipeout2097 = addGroup(select, 'WipEout 2097/XL');
+
+			for( var i = 0; i < Wipeout.Tracks.Wipeout2097.length; i++ ) {
+				var track = Wipeout.Tracks.Wipeout2097[i];
+
+				addOption(groupWipeout2097, track.name, (function(track, viewer){
+					viewer.clear();
+					viewer.loadTrack(track.path, track.rangesForCameraSpline);
+				}).bind(null, track));
+			}
+
+			addOption(groupWipeout2097, '', function(){});
+
+			addOption(groupWipeout2097, 'Ships', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					textures: 'WIPEOUT2/COMMON/TERRY.CMP',
+					objects: 'WIPEOUT2/COMMON/TERRY.PRM'
+				}, function(files) { viewer.createScene(files, {scale: 16, space:9600}); });
+			});
+
+			addOption(groupWipeout2097, 'Menu Items', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					objects: 'WIPEOUT2/COMMON/JULIE.PRM'
+				}, function(files) { viewer.createScene(files, {scale: 16, space:9600}); });
+			});
+
+			addOption(groupWipeout2097, 'Menu Tracks', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					objects: 'WIPEOUT2/COMMON/JUNE.PRM'
+				}, function(files) { viewer.createScene(files, {scale: 16, space:20000}); });
+			});
+
+
+
+			// Camera and Music Controls
 			document.getElementById('freeCam').addEventListener('click', function(ev){
 				viewer.activeCameraMode = 'orbit';
 				ev.preventDefault();
@@ -136,6 +189,7 @@
 				music.pause();
 				ev.preventDefault();
 			}, true);
+
 
 			// Load the first scene in our list
 			loadingFunctions[0](viewer);

@@ -880,7 +880,8 @@ Wipeout.prototype.loadTrack = function( path, rangesForCameraSpline ) {
 // For tracks with junctions, we will create a spline that loops around the 
 // track twice: taking each junction once.
 
-Wipeout.Tracks = [
+Wipeout.Tracks = {};
+Wipeout.Tracks.Wipeout = [
 	{path: "WIPEOUT/TRACK02", name: "Altima VII - Venom", rangesForCameraSpline: [[0,2644]]},
 	{path: "WIPEOUT/TRACK03", name: "Altima VII - Rapier", rangesForCameraSpline: [[0,2644]]},
 	{path: "WIPEOUT/TRACK04", name: "Karbonis V - Venom", rangesForCameraSpline: [[0,1668]]},
@@ -895,4 +896,16 @@ Wipeout.Tracks = [
 	{path: "WIPEOUT/TRACK13", name: "Silverstream - Rapier", rangesForCameraSpline: [[0,1578],[0,90],[2258,2411],[286,832],[1578,1686],[944,964],[1686,2260],[1514,1578]]},
 	{path: "WIPEOUT/TRACK10", name: "Firestar - Venom", rangesForCameraSpline: [[0,1664]]},
 	{path: "WIPEOUT/TRACK14", name: "Firestar - Rapier", rangesForCameraSpline: [[0,1664]]}
+];
+
+Wipeout.Tracks.Wipeout2097 = [
+	{path: "WIPEOUT2/TRACK01", name: "Talon's Reach", rangesForCameraSpline: [[0,1280]]},
+	{path: "WIPEOUT2/TRACK08", name: "Sagarmatha", rangesForCameraSpline: [[0,1468]]},
+	{path: "WIPEOUT2/TRACK13", name: "Valparaiso", rangesForCameraSpline: [[0,2084]]},
+	{path: "WIPEOUT2/TRACK20", name: "Phenitia Park", rangesForCameraSpline: [[0,1860]]},
+	{path: "WIPEOUT2/TRACK02", name: "Gare d'Europa", rangesForCameraSpline: [[0,1704]]},
+	{path: "WIPEOUT2/TRACK17", name: "Odessa Keys", rangesForCameraSpline: [[0,1722]]},
+	{path: "WIPEOUT2/TRACK06", name: "Vostok Island", rangesForCameraSpline: [[0,1814]]},
+	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke", rangesForCameraSpline: [[0,1912]]},
+	{path: "WIPEOUT2/TRACK04", name: "Unfinished Track", rangesForCameraSpline: [[0,1871]]},
 ];
