@@ -324,20 +324,20 @@ Wipeout.IMAGE_TYPE = {
 };
 
 Wipeout.ImageFileHeader = Struct.create(
-	Struct.uint32('magic', true),
-	Struct.uint32('type', true),
-	Struct.uint32('headerLength', true),
-	Struct.uint16('paletteX', true),
-	Struct.uint16('paletteY', true),
-	Struct.uint16('paletteColors', true),
-	Struct.uint16('palettes', true)
+	Struct.uint32('magic', Struct.LITTLE_ENDIAN),
+	Struct.uint32('type', Struct.LITTLE_ENDIAN),
+	Struct.uint32('headerLength', Struct.LITTLE_ENDIAN),
+	Struct.uint16('paletteX', Struct.LITTLE_ENDIAN),
+	Struct.uint16('paletteY', Struct.LITTLE_ENDIAN),
+	Struct.uint16('paletteColors', Struct.LITTLE_ENDIAN),
+	Struct.uint16('palettes', Struct.LITTLE_ENDIAN)
 );
 
 Wipeout.ImagePixelHeader = Struct.create(
-	Struct.uint16('skipX', true),
-	Struct.uint16('skipY', true),
-	Struct.uint16('width', true),
-	Struct.uint16('height', true)
+	Struct.uint16('skipX', Struct.LITTLE_ENDIAN),
+	Struct.uint16('skipY', Struct.LITTLE_ENDIAN),
+	Struct.uint16('width', Struct.LITTLE_ENDIAN),
+	Struct.uint16('height', Struct.LITTLE_ENDIAN)
 );
 
 

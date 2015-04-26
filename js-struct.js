@@ -37,8 +37,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	int8: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getInt8(o"+(littleEndian?',true':'')+");", byteLength: 1, defaultValue: 0, structProperty: true }; 
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getInt8(o"+(endian?',true':'')+");", byteLength: 1, defaultValue: 0, structProperty: true }; 
 		}
 	},
 	
@@ -47,8 +47,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	uint8: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getUint8(o"+(littleEndian?',true':'')+");", byteLength: 1, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getUint8(o"+(endian?',true':'')+");", byteLength: 1, defaultValue: 0, structProperty: true };
 		}
 	},
 	
@@ -57,8 +57,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	int16: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getInt16(o"+(littleEndian?',true':'')+");", byteLength: 2, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getInt16(o"+(endian?',true':'')+");", byteLength: 2, defaultValue: 0, structProperty: true };
 		}
 	},
 	
@@ -67,8 +67,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	uint16: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getUint16(o"+(littleEndian?',true':'')+");", byteLength: 2, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getUint16(o"+(endian?',true':'')+");", byteLength: 2, defaultValue: 0, structProperty: true };
 		}
 	},
 	
@@ -77,8 +77,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	int32: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getInt32(o"+(littleEndian?',true':'')+");", byteLength: 4, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getInt32(o"+(endian?',true':'')+");", byteLength: 4, defaultValue: 0, structProperty: true };
 		}
 	},
 	
@@ -87,8 +87,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	uint32: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getUint32(o"+(littleEndian?',true':'')+");", byteLength: 4, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getUint32(o"+(endian?',true':'')+");", byteLength: 4, defaultValue: 0, structProperty: true };
 		}
 	},
 	
@@ -97,8 +97,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	float32: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getFloat32(o"+(littleEndian?',true':'')+");", byteLength: 4, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getFloat32(o"+(endian?',true':'')+");", byteLength: 4, defaultValue: 0, structProperty: true };
 		}
 	},
 	
@@ -107,8 +107,8 @@ var Struct = Object.create(Object, {
 	* @param name Property name
 	*/
 	float64: { 
-		value: function(name, littleEndian) { 
-			return { name: name, readCode: "v.getFloat64(o"+(littleEndian?',true':'')+");", byteLength: 8, defaultValue: 0, structProperty: true };
+		value: function(name, endian) { 
+			return { name: name, readCode: "v.getFloat64(o"+(endian?',true':'')+");", byteLength: 8, defaultValue: 0, structProperty: true };
 		}
 	},
 
@@ -258,5 +258,8 @@ var Struct = Object.create(Object, {
 			
 			return struct;
 		}
-	}
+	},
 });
+
+Struct.BIG_ENDIAN = false;
+Struct.LITTLE_ENDIAN = true;
