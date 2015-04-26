@@ -66,7 +66,7 @@ Wipeout.prototype.animate = function() {
 		var tmod = ( time % loopTime ) / loopTime;
 		var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
 		this.splineCamera.position.multiplyScalar(damping)
-			.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
+			.add(cameraPos.clone().add({x:0, y:400, z:0}).multiplyScalar(1-damping));
 
 		// Camera lookAt along the spline
 		var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
@@ -150,6 +150,30 @@ Wipeout.TrackTextureIndex = Struct.create(
 	Struct.array('med', Struct.uint16(), 4), // 2x2 tiles
 	Struct.array('far', Struct.uint16(), 1) // 1 tile
 );
+
+
+// .TRS Files ---------------------------------------------
+Wipeout.TrackSection = Struct.create(
+	Struct.int32('nextJunction'),
+	Struct.int32('previous'),
+	Struct.int32('next'),
+	Struct.int32('x'),
+	Struct.int32('y'),
+	Struct.int32('z'),
+	Struct.skip(116),
+	Struct.uint32('firstFace'),
+	Struct.uint16('numFaces'),
+	Struct.skip(4),
+	Struct.uint16('flags'),
+	Struct.skip(4)
+);
+
+Wipeout.TrackSection.FLAGS = {
+	JUMP: 1,
+	JUNCTION_END: 8,
+	JUNCTION_START: 16,
+	JUNCTION: 32
+};
 
 
 // .PRM Files ---------------------------------------------
@@ -738,7 +762,7 @@ Wipeout.prototype.createScene = function(files, modify) {
 // ----------------------------------------------------------------------------
 // Add a track from TRV, TRF, CMP and TTF files to the scene
 
-Wipeout.prototype.createTrack = function(files, rangesForCameraSpline) {
+Wipeout.prototype.createTrack = function(files) {
 	var rawImages = this.unpackImages(files.textures);
 	var images = rawImages.map(this.readImage.bind(this));
 
@@ -771,6 +795,7 @@ Wipeout.prototype.createTrack = function(files, rangesForCameraSpline) {
 
 	var model = new THREE.Object3D();
 	var geometry = new THREE.Geometry();
+
 
 	// Load vertices
 	var vertexCount = files.vertices.byteLength / Wipeout.TrackVertex.byteLength;
@@ -811,37 +836,41 @@ Wipeout.prototype.createTrack = function(files, rangesForCameraSpline) {
 	this.scene.add( model );
 
 
-	if( rangesForCameraSpline && rangesForCameraSpline.length ) {
-		this.createCameraSpline(geometry.vertices, faces, rangesForCameraSpline);	
-	}
+	this.createCameraSpline(files.sections);
 };
 
 
 // ----------------------------------------------------------------------------
-// Extract a camera path by using the edges of certain track faces
+// Extract a camera from the track section file (.TRS)
 
-Wipeout.prototype.createCameraSpline = function(vertices, faces, ranges) {
+Wipeout.prototype.createCameraSpline = function(buffer) {
+	var sectionCount = buffer.byteLength / Wipeout.TrackSection.byteLength;
+	var sections = Wipeout.TrackSection.readStructs(buffer, 0, sectionCount);
+
 	var cameraPoints = [];
 
-	for( var r = 0; r < ranges.length; r++ ) {
-		var lastFace = null;
-		var first = ranges[r][0],
-			last = ranges[r][1];
-
-		for( var i = first; i < last; i++ ) {
-			var face = faces[i];
-
-			// Last face was a track tile and this one is too? Should be the right
-			// hand sice of the track floor: Add it to the camera spline!
-			if(
-				lastFace && (lastFace.flags & Wipeout.TrackFace.FLAGS.TRACK) && 
-				(face.flags & Wipeout.TrackFace.FLAGS.TRACK)
-			) {
-				cameraPoints.push(vertices[face.indices[1]]);
-			}
-			lastFace = face;
+	// First curve, always skip junctions
+	var index = 0;
+	do {
+		var s = sections[index];
+		cameraPoints.push( new THREE.Vector3(s.x, -s.y, -s.z));
+		index = s.next;
+	} while(index > 0 && index < sections.length);
+	
+	// Second curve, take junctions when possible
+	index = 0;
+	do {
+		var s = sections[index];
+		cameraPoints.push( new THREE.Vector3(s.x, -s.y, -s.z));
+		
+		// Get next section, look for junctions
+		if(s.nextJunction != -1 && (sections[s.nextJunction].flags & Wipeout.TrackSection.FLAGS.JUNCTION_START)) {
+			index = s.nextJunction;
 		}
-	}
+		else {
+			index = s.next;
+		}
+	} while(index > 0 && index < sections.length);
 
 	this.cameraSpline = new THREE.SplineCurve3(cameraPoints);
 
@@ -852,7 +881,7 @@ Wipeout.prototype.createCameraSpline = function(vertices, faces, ranges) {
 	// ));
 };
 
-Wipeout.prototype.loadTrack = function( path, rangesForCameraSpline ) {
+Wipeout.prototype.loadTrack = function( path ) {
 	var that = this;
 	this.loadBinaries({
 		textures: path+'/SCENE.CMP',
@@ -868,8 +897,9 @@ Wipeout.prototype.loadTrack = function( path, rangesForCameraSpline ) {
 		textures: path+'/LIBRARY.CMP',
 		textureIndex: path+'/LIBRARY.TTF',
 		vertices: path+'/TRACK.TRV',
-		faces: path+'/TRACK.TRF'
-	}, function(files) { that.createTrack(files, rangesForCameraSpline); });
+		faces: path+'/TRACK.TRF',
+		sections: path+'/TRACK.TRS'
+	}, function(files) { that.createTrack(files); });
 
 };
 
@@ -882,30 +912,30 @@ Wipeout.prototype.loadTrack = function( path, rangesForCameraSpline ) {
 
 Wipeout.Tracks = {};
 Wipeout.Tracks.Wipeout = [
-	{path: "WIPEOUT/TRACK02", name: "Altima VII - Venom", rangesForCameraSpline: [[0,2644]]},
-	{path: "WIPEOUT/TRACK03", name: "Altima VII - Rapier", rangesForCameraSpline: [[0,2644]]},
-	{path: "WIPEOUT/TRACK04", name: "Karbonis V - Venom", rangesForCameraSpline: [[0,1668]]},
-	{path: "WIPEOUT/TRACK05", name: "Karbonis V - Rapier", rangesForCameraSpline: [[0,1668]]},
-	{path: "WIPEOUT/TRACK01", name: "Terramax - Venom", rangesForCameraSpline: [[0,736],[868,1378],[737,868]]},
-	{path: "WIPEOUT/TRACK06", name: "Terramax - Rapier", rangesForCameraSpline: [[0,736],[868,1378],[737,868]]},
-	{path: "WIPEOUT/TRACK12", name: "Korodera - Venom", rangesForCameraSpline: [[0,2450],[0,528],[2452,2529],[618,2450]]},
-	{path: "WIPEOUT/TRACK07", name: "Korodera - Rapier", rangesForCameraSpline: [[0,2450],[0,528],[2452,2529],[618,2450]]},
-	{path: "WIPEOUT/TRACK08", name: "Arridos IV - Venom", rangesForCameraSpline: [[0,2200],[0,830],[2200,2284],[926,952],[2284,2418],[1096,2200]]},
-	{path: "WIPEOUT/TRACK11", name: "Arridos IV - Rapier", rangesForCameraSpline: [[0,2200],[0,830],[2200,2284],[926,952],[2284,2418],[1096,2200]]},
-	{path: "WIPEOUT/TRACK09", name: "Silverstream - Venom", rangesForCameraSpline: [[0,1578],[0,90],[2258,2411],[286,832],[1578,1686],[944,964],[1686,2260],[1514,1578]]},
-	{path: "WIPEOUT/TRACK13", name: "Silverstream - Rapier", rangesForCameraSpline: [[0,1578],[0,90],[2258,2411],[286,832],[1578,1686],[944,964],[1686,2260],[1514,1578]]},
-	{path: "WIPEOUT/TRACK10", name: "Firestar - Venom", rangesForCameraSpline: [[0,1664]]},
-	{path: "WIPEOUT/TRACK14", name: "Firestar - Rapier", rangesForCameraSpline: [[0,1664]]}
+	{path: "WIPEOUT/TRACK02", name: "Altima VII - Venom"},
+	{path: "WIPEOUT/TRACK03", name: "Altima VII - Rapier"},
+	{path: "WIPEOUT/TRACK04", name: "Karbonis V - Venom"},
+	{path: "WIPEOUT/TRACK05", name: "Karbonis V - Rapier"},
+	{path: "WIPEOUT/TRACK01", name: "Terramax - Venom"},
+	{path: "WIPEOUT/TRACK06", name: "Terramax - Rapier"},
+	{path: "WIPEOUT/TRACK12", name: "Korodera - Venom"},
+	{path: "WIPEOUT/TRACK07", name: "Korodera - Rapier"},
+	{path: "WIPEOUT/TRACK08", name: "Arridos IV - Venom"},
+	{path: "WIPEOUT/TRACK11", name: "Arridos IV - Rapier"},
+	{path: "WIPEOUT/TRACK09", name: "Silverstream - Venom"},
+	{path: "WIPEOUT/TRACK13", name: "Silverstream - Rapier"},
+	{path: "WIPEOUT/TRACK10", name: "Firestar - Venom"},
+	{path: "WIPEOUT/TRACK14", name: "Firestar - Rapier"}
 ];
 
 Wipeout.Tracks.Wipeout2097 = [
-	{path: "WIPEOUT2/TRACK01", name: "Talon's Reach", rangesForCameraSpline: [[0,1280]]},
-	{path: "WIPEOUT2/TRACK08", name: "Sagarmatha", rangesForCameraSpline: [[0,1468]]},
-	{path: "WIPEOUT2/TRACK13", name: "Valparaiso", rangesForCameraSpline: [[0,2084]]},
-	{path: "WIPEOUT2/TRACK20", name: "Phenitia Park", rangesForCameraSpline: [[0,1860]]},
-	{path: "WIPEOUT2/TRACK02", name: "Gare d'Europa", rangesForCameraSpline: [[0,1704]]},
-	{path: "WIPEOUT2/TRACK17", name: "Odessa Keys", rangesForCameraSpline: [[0,1722]]},
-	{path: "WIPEOUT2/TRACK06", name: "Vostok Island", rangesForCameraSpline: [[0,1814]]},
-	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke", rangesForCameraSpline: [[0,1912]]},
-	{path: "WIPEOUT2/TRACK04", name: "Unfinished Track", rangesForCameraSpline: [[0,1871]]},
+	{path: "WIPEOUT2/TRACK01", name: "Talon's Reach"},
+	{path: "WIPEOUT2/TRACK08", name: "Sagarmatha"},
+	{path: "WIPEOUT2/TRACK13", name: "Valparaiso"},
+	{path: "WIPEOUT2/TRACK20", name: "Phenitia Park"},
+	{path: "WIPEOUT2/TRACK02", name: "Gare d'Europa"},
+	{path: "WIPEOUT2/TRACK17", name: "Odessa Keys"},
+	{path: "WIPEOUT2/TRACK06", name: "Vostok Island"},
+	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke"},
+	{path: "WIPEOUT2/TRACK04", name: "Unfinished Track"},
 ];
