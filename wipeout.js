@@ -904,12 +904,6 @@ Wipeout.prototype.loadTrack = function( path ) {
 };
 
 
-// For some tracks, the track faces are not in continuous order, or the track
-// has a junction. For these tracks, we have to specify the face ranges from
-// which to extract the camera spline.
-// For tracks with junctions, we will create a spline that loops around the 
-// track twice: taking each junction once.
-
 Wipeout.Tracks = {};
 Wipeout.Tracks.Wipeout = [
 	{path: "WIPEOUT/TRACK02", name: "Altima VII - Venom"},
