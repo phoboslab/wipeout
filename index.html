@@ -147,6 +147,14 @@
 					objects: 'WIPEOUT2/COMMON/TERRY.PRM'
 				}, function(files) { viewer.createScene(files, {scale: 16, space:9600}); });
 			});
+			
+			addOption(groupWipeout2097, 'Weird Ships', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					textures: 'WIPEOUT2/COMMON/WIERD.CMP',
+					objects: 'WIPEOUT2/COMMON/WIERD.PRM'
+				}, function(files) { viewer.createScene(files, {scale: 16, space:9600}); });
+			});
 
 			addOption(groupWipeout2097, 'Menu Items', function(viewer){
 				viewer.clear();
