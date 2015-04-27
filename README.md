@@ -18,3 +18,5 @@ MIT License
  
  - Fly-through Camera spline doesn't handle jumps nicely
  
+ - Some faces from PRM models seem to be backwards. This only is a problem for some WOXL models. E.g. the cannopy on Spilskinake or some rocks on Vostock Island are backwards. Maybe this just didn't matter, because the original game didn't cull back faces? Or is there a flag or face normal for some polygon types?
+ 
