@@ -836,14 +836,14 @@ Wipeout.prototype.createTrack = function(files) {
 	this.scene.add( model );
 
 
-	this.createCameraSpline(files.sections);
+	this.createCameraSpline(files.sections, faces, geometry.vertices);
 };
 
 
 // ----------------------------------------------------------------------------
 // Extract a camera from the track section file (.TRS)
 
-Wipeout.prototype.createCameraSpline = function(buffer) {
+Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	var sectionCount = buffer.byteLength / Wipeout.TrackSection.byteLength;
 	var sections = Wipeout.TrackSection.readStructs(buffer, 0, sectionCount);
 
@@ -853,7 +853,9 @@ Wipeout.prototype.createCameraSpline = function(buffer) {
 	var index = 0;
 	do {
 		var s = sections[index];
-		cameraPoints.push( new THREE.Vector3(s.x, -s.y, -s.z));
+		var pos = this.getSectionPosition(s, faces, vertices);
+		cameraPoints.push(pos);
+		
 		index = s.next;
 	} while(index > 0 && index < sections.length);
 	
@@ -861,7 +863,8 @@ Wipeout.prototype.createCameraSpline = function(buffer) {
 	index = 0;
 	do {
 		var s = sections[index];
-		cameraPoints.push( new THREE.Vector3(s.x, -s.y, -s.z));
+		var pos = this.getSectionPosition(s, faces, vertices);
+		cameraPoints.push(pos);
 		
 		// Get next section, look for junctions
 		if(s.nextJunction != -1 && (sections[s.nextJunction].flags & Wipeout.TrackSection.FLAGS.JUNCTION_START)) {
@@ -880,6 +883,27 @@ Wipeout.prototype.createCameraSpline = function(buffer) {
 	// 	new THREE.MeshBasicMaterial({color: 0xff00ff})
 	// ));
 };
+
+// ----------------------------------------------------------------------------
+// Get track section center position from track vertices
+
+Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
+	var verticescount = 0;
+	var position = new THREE.Vector3();
+	for(var i = section.firstFace; i < section.firstFace+section.numFaces; i++ ) {
+		var face = faces[i];
+		if (face.flags & Wipeout.TrackFace.FLAGS.TRACK) {
+			for(var j = 0 ; j < face.indices.length ; j++) {
+				var vertex = vertices[face.indices[j]];
+				position.add(vertex);
+				verticescount++;
+			}
+		}
+	}
+	
+	position.divideScalar(verticescount);
+	return position;
+}
 
 Wipeout.prototype.loadTrack = function( path ) {
 	var that = this;
