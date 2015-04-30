@@ -66,7 +66,7 @@ Wipeout.prototype.animate = function() {
 		var tmod = ( time % loopTime ) / loopTime;
 		var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
 		this.splineCamera.position.multiplyScalar(damping)
-			.add(cameraPos.clone().add({x:0, y:400, z:0}).multiplyScalar(1-damping));
+			.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
 
 		// Camera lookAt along the spline
 		var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
