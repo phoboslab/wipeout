@@ -848,11 +848,15 @@ Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	var sections = Wipeout.TrackSection.readStructs(buffer, 0, sectionCount);
 
 	var cameraPoints = [];
+	var jumpIndexes = [];
 
 	// First curve, always skip junctions
 	var index = 0;
 	do {
 		var s = sections[index];
+		if(s.flags & Wipeout.TrackSection.FLAGS.JUMP)
+			jumpIndexes.push(cameraPoints.length);
+		
 		var pos = this.getSectionPosition(s, faces, vertices);
 		cameraPoints.push(pos);
 		
@@ -863,6 +867,9 @@ Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	index = 0;
 	do {
 		var s = sections[index];
+		if(s.flags & Wipeout.TrackSection.FLAGS.JUMP)
+			jumpIndexes.push(cameraPoints.length);
+		
 		var pos = this.getSectionPosition(s, faces, vertices);
 		cameraPoints.push(pos);
 		
@@ -874,8 +881,23 @@ Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 			index = s.next;
 		}
 	} while(index > 0 && index < sections.length);
-
-	this.cameraSpline = new THREE.SplineCurve3(cameraPoints);
+	
+	//extend path near jumps by adding tangent vector
+	for(var i = 0 ; i < jumpIndexes.length ; i++ ) {
+		var index = jumpIndexes[i];
+		
+		var jumpPoint = cameraPoints[index];
+		var tangent = jumpPoint.clone().sub(cameraPoints[(index+cameraPoints.length-1)%cameraPoints.length]);
+		var lengthNext = cameraPoints[(index+1)%cameraPoints.length].clone().sub(jumpPoint).length();
+		
+		jumpPoint.add(tangent.setLength(lengthNext/4));
+	}
+	
+	this.cameraSpline = new THREE.HermiteCurve3(cameraPoints, 0.5, 0.0);
+	
+	//increase arc length subdivisions to get constant camera speed during jumps
+	//this prevent camera going too fast due imprecise length distance estimations
+	this.cameraSpline.__arcLengthDivisions = 20000;
 
 	// Draw the Camera Spline
 	// this.scene.add( new THREE.Mesh(
