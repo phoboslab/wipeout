@@ -37,6 +37,7 @@ Wipeout.prototype.clear = function() {
 	this.cameraSpline = null;
 	this.sceneMaterial = {};
 	this.trackMaterial = null;
+	this.weaponTileMaterial = null;
 };
 
 Wipeout.prototype.resize = function() {
@@ -101,6 +102,14 @@ Wipeout.prototype.animate = function() {
 		this.rotateSpritesToCamera(this.camera);
 		this.renderer.render( this.scene, this.camera );
 	}
+	
+	//update weapon tile material 
+	if(this.weaponTileMaterial != null)
+	{
+		var time = Date.now();
+		var color = new THREE.Color().setHSL((time / 15000) %1, 2, 0.5);
+		this.weaponTileMaterial.uniforms.tileColor.value = new THREE.Vector3(color.r, color.g, color.b);
+	}
 };
 
 
@@ -138,9 +147,9 @@ Wipeout.TrackFace.FLAGS = {
 	TRACK: 1,
 	WEAPON: 2,
 	FLIP: 4,
-	BOOST: 8,
+	WEAPON_2: 8,
 	UNKNOWN: 16,
-	BOOST_2: 32
+	BOOST: 32
 };
 
 
@@ -697,6 +706,32 @@ Wipeout.prototype.readImage = function(buffer) {
 	return canvas;
 };
 
+// ----------------------------------------------------------------------------
+// Create a material rendered with custom color for weapons tiles 
+
+Wipeout.prototype.createWeaponTileMaterial = function(texture){
+	var material = new THREE.ShaderMaterial( {
+		uniforms: {
+			tileColor: { type: "v3", value: new THREE.Vector3() },
+			texture: { type: "t", value: texture }
+		},
+		vertexShader: "\
+			varying vec2 vUV;\
+			void main() {\
+				vUV = uv;\
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0 );\
+			}",
+		fragmentShader: "\
+			varying vec2 vUV;\
+			uniform vec3 tileColor;\
+			uniform sampler2D texture;\
+			void main() {\
+				gl_FragColor = texture2D( texture, vUV ) * vec4(tileColor, 1.0);\
+			}"
+	});
+	
+	return material;
+}
 
 // ----------------------------------------------------------------------------
 // Create a single ThreeJS MeshFaceMaterial with the given images
@@ -714,8 +749,18 @@ Wipeout.prototype.createMeshFaceMaterial = function(images, vertexColors, side){
 			texture.minFilter = THREE.NearestFilter;
 			texture.magFilter = THREE.NearestFilter;
 			texture.needsUpdate = true;	
-
-			material = new THREE.MeshBasicMaterial({map:texture});
+			
+			if(i == 3 && vertexColors == THREE.FaceColors)
+			{
+				//this is a weapon tile
+				material = this.createWeaponTileMaterial(texture);
+				this.weaponTileMaterial = material;
+			}
+			else
+			{
+				material = new THREE.MeshBasicMaterial({map:texture});
+			}
+			
 			material.vertexColors = vertexColors;
 			material.side = side;
 			material.alphaTest = 0.5;
@@ -814,6 +859,12 @@ Wipeout.prototype.createTrack = function(files) {
 
 		var color = this.int32ToColor( f.color );
 		var materialIndex = f.tile;
+		
+		if(f.flags & Wipeout.TrackFace.FLAGS.BOOST)
+		{
+			//render boost tile as bright blue
+			color = new THREE.Color(0, 0, 2);
+		}
 		
 		geometry.faces.push( new THREE.Face3(f.indices[0], f.indices[1], f.indices[2], null, color, materialIndex) );
 		geometry.faces.push( new THREE.Face3(f.indices[2], f.indices[3], f.indices[0], null, color, materialIndex) );
