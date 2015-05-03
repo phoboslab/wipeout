@@ -37,6 +37,7 @@ Wipeout.prototype.clear = function() {
 	this.cameraSpline = null;
 	this.sceneMaterial = {};
 	this.trackMaterial = null;
+	this.weaponTileMaterial = null;
 };
 
 Wipeout.prototype.resize = function() {
@@ -66,7 +67,7 @@ Wipeout.prototype.animate = function() {
 		var tmod = ( time % loopTime ) / loopTime;
 		var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
 		this.splineCamera.position.multiplyScalar(damping)
-			.add(cameraPos.clone().add({x:0, y:400, z:0}).multiplyScalar(1-damping));
+			.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
 
 		// Camera lookAt along the spline
 		var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
@@ -100,6 +101,14 @@ Wipeout.prototype.animate = function() {
 		this.controls.update();
 		this.rotateSpritesToCamera(this.camera);
 		this.renderer.render( this.scene, this.camera );
+	}
+	
+	//update weapon tile material 
+	if(this.weaponTileMaterial != null)
+	{
+		var time = Date.now();
+		var color = new THREE.Color().setHSL((time / 15000) %1, 2, 0.5);
+		this.weaponTileMaterial.uniforms.tileColor.value = new THREE.Vector3(color.r, color.g, color.b);
 	}
 };
 
@@ -138,9 +147,9 @@ Wipeout.TrackFace.FLAGS = {
 	TRACK: 1,
 	WEAPON: 2,
 	FLIP: 4,
-	BOOST: 8,
+	WEAPON_2: 8,
 	UNKNOWN: 16,
-	BOOST_2: 32
+	BOOST: 32
 };
 
 
@@ -697,6 +706,32 @@ Wipeout.prototype.readImage = function(buffer) {
 	return canvas;
 };
 
+// ----------------------------------------------------------------------------
+// Create a material rendered with custom color for weapons tiles 
+
+Wipeout.prototype.createWeaponTileMaterial = function(texture){
+	var material = new THREE.ShaderMaterial( {
+		uniforms: {
+			tileColor: { type: "v3", value: new THREE.Vector3() },
+			texture: { type: "t", value: texture }
+		},
+		vertexShader: "\
+			varying vec2 vUV;\
+			void main() {\
+				vUV = uv;\
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0 );\
+			}",
+		fragmentShader: "\
+			varying vec2 vUV;\
+			uniform vec3 tileColor;\
+			uniform sampler2D texture;\
+			void main() {\
+				gl_FragColor = texture2D( texture, vUV ) * vec4(tileColor, 1.0);\
+			}"
+	});
+	
+	return material;
+}
 
 // ----------------------------------------------------------------------------
 // Create a single ThreeJS MeshFaceMaterial with the given images
@@ -714,8 +749,18 @@ Wipeout.prototype.createMeshFaceMaterial = function(images, vertexColors, side){
 			texture.minFilter = THREE.NearestFilter;
 			texture.magFilter = THREE.NearestFilter;
 			texture.needsUpdate = true;	
-
-			material = new THREE.MeshBasicMaterial({map:texture});
+			
+			if(i == 3 && vertexColors == THREE.FaceColors)
+			{
+				//this is a weapon tile
+				material = this.createWeaponTileMaterial(texture);
+				this.weaponTileMaterial = material;
+			}
+			else
+			{
+				material = new THREE.MeshBasicMaterial({map:texture});
+			}
+			
 			material.vertexColors = vertexColors;
 			material.side = side;
 			material.alphaTest = 0.5;
@@ -815,6 +860,12 @@ Wipeout.prototype.createTrack = function(files) {
 		var color = this.int32ToColor( f.color );
 		var materialIndex = f.tile;
 		
+		if(f.flags & Wipeout.TrackFace.FLAGS.BOOST)
+		{
+			//render boost tile as bright blue
+			color = new THREE.Color(0, 0, 2);
+		}
+		
 		geometry.faces.push( new THREE.Face3(f.indices[0], f.indices[1], f.indices[2], null, color, materialIndex) );
 		geometry.faces.push( new THREE.Face3(f.indices[2], f.indices[3], f.indices[0], null, color, materialIndex) );
 
@@ -836,24 +887,30 @@ Wipeout.prototype.createTrack = function(files) {
 	this.scene.add( model );
 
 
-	this.createCameraSpline(files.sections);
+	this.createCameraSpline(files.sections, faces, geometry.vertices);
 };
 
 
 // ----------------------------------------------------------------------------
 // Extract a camera from the track section file (.TRS)
 
-Wipeout.prototype.createCameraSpline = function(buffer) {
+Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	var sectionCount = buffer.byteLength / Wipeout.TrackSection.byteLength;
 	var sections = Wipeout.TrackSection.readStructs(buffer, 0, sectionCount);
 
 	var cameraPoints = [];
+	var jumpIndexes = [];
 
 	// First curve, always skip junctions
 	var index = 0;
 	do {
 		var s = sections[index];
-		cameraPoints.push( new THREE.Vector3(s.x, -s.y, -s.z));
+		if(s.flags & Wipeout.TrackSection.FLAGS.JUMP)
+			jumpIndexes.push(cameraPoints.length);
+		
+		var pos = this.getSectionPosition(s, faces, vertices);
+		cameraPoints.push(pos);
+		
 		index = s.next;
 	} while(index > 0 && index < sections.length);
 	
@@ -861,7 +918,11 @@ Wipeout.prototype.createCameraSpline = function(buffer) {
 	index = 0;
 	do {
 		var s = sections[index];
-		cameraPoints.push( new THREE.Vector3(s.x, -s.y, -s.z));
+		if(s.flags & Wipeout.TrackSection.FLAGS.JUMP)
+			jumpIndexes.push(cameraPoints.length);
+		
+		var pos = this.getSectionPosition(s, faces, vertices);
+		cameraPoints.push(pos);
 		
 		// Get next section, look for junctions
 		if(s.nextJunction != -1 && (sections[s.nextJunction].flags & Wipeout.TrackSection.FLAGS.JUNCTION_START)) {
@@ -871,8 +932,23 @@ Wipeout.prototype.createCameraSpline = function(buffer) {
 			index = s.next;
 		}
 	} while(index > 0 && index < sections.length);
-
-	this.cameraSpline = new THREE.SplineCurve3(cameraPoints);
+	
+	//extend path near jumps by adding tangent vector
+	for(var i = 0 ; i < jumpIndexes.length ; i++ ) {
+		var index = jumpIndexes[i];
+		
+		var jumpPoint = cameraPoints[index];
+		var tangent = jumpPoint.clone().sub(cameraPoints[(index+cameraPoints.length-1)%cameraPoints.length]);
+		var lengthNext = cameraPoints[(index+1)%cameraPoints.length].clone().sub(jumpPoint).length();
+		
+		jumpPoint.add(tangent.setLength(lengthNext/4));
+	}
+	
+	this.cameraSpline = new THREE.HermiteCurve3(cameraPoints, 0.5, 0.0);
+	
+	//increase arc length subdivisions to get constant camera speed during jumps
+	//this prevent camera going too fast due imprecise length distance estimations
+	this.cameraSpline.__arcLengthDivisions = 20000;
 
 	// Draw the Camera Spline
 	// this.scene.add( new THREE.Mesh(
@@ -880,6 +956,27 @@ Wipeout.prototype.createCameraSpline = function(buffer) {
 	// 	new THREE.MeshBasicMaterial({color: 0xff00ff})
 	// ));
 };
+
+// ----------------------------------------------------------------------------
+// Get track section center position from track vertices
+
+Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
+	var verticescount = 0;
+	var position = new THREE.Vector3();
+	for(var i = section.firstFace; i < section.firstFace+section.numFaces; i++ ) {
+		var face = faces[i];
+		if (face.flags & Wipeout.TrackFace.FLAGS.TRACK) {
+			for(var j = 0 ; j < face.indices.length ; j++) {
+				var vertex = vertices[face.indices[j]];
+				position.add(vertex);
+				verticescount++;
+			}
+		}
+	}
+	
+	position.divideScalar(verticescount);
+	return position;
+}
 
 Wipeout.prototype.loadTrack = function( path ) {
 	var that = this;
