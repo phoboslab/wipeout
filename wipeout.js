@@ -55,11 +55,16 @@ Wipeout.prototype.resize = function() {
 
 Wipeout.prototype.animate = function() {
 	requestAnimationFrame( this.animate.bind(this) );
+	var time = Date.now();
+	
+	//update weapon tile color 
+	if(this.weaponTileMaterial) {
+		this.updateWeaponMaterial(time);
+	}
 
 	// Camera is in fly mode and we have a spline to follow?
 	if( this.activeCameraMode === 'fly' && this.cameraSpline ) {
 		var damping = 0.90;
-		var time = Date.now();
 
 		var loopTime = this.cameraSpline.points.length * 100;
 
@@ -102,16 +107,7 @@ Wipeout.prototype.animate = function() {
 		this.rotateSpritesToCamera(this.camera);
 		this.renderer.render( this.scene, this.camera );
 	}
-	
-	//update weapon tile material 
-	if(this.weaponTileMaterial != null)
-	{
-		var time = Date.now();
-		var color = new THREE.Color().setHSL((time / 15000) %1, 2, 0.5);
-		this.weaponTileMaterial.uniforms.tileColor.value = new THREE.Vector3(color.r, color.g, color.b);
-	}
 };
-
 
 Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 	for( var i = 0; i < this.sprites.length; i++ ) {
@@ -119,7 +115,17 @@ Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 	}
 };
 
-
+Wipeout.prototype.updateWeaponMaterial = function(time) {
+	//purple -> blue -> cyan -> greenyellow -> yellow -> amber (never 100% red or green)
+	var colors = [0x8000ff, 0x0000ff, 0x00ffff, 0x80ff00, 0xffff00, 0xff8000];
+	var t = time / 1500;
+	var index = Math.floor(t);
+	var alpha = t - index;
+	
+	var colorA = new THREE.Color(colors[index%colors.length]);
+	var colorB = new THREE.Color(colors[(index+1)%colors.length]);
+	this.weaponTileMaterial.color = colorA.lerp(colorB, alpha).multiplyScalar(1.5);
+};
 
 // ----------------------------------------------------------------------------
 // Wipeout Data Types
@@ -707,33 +713,6 @@ Wipeout.prototype.readImage = function(buffer) {
 };
 
 // ----------------------------------------------------------------------------
-// Create a material rendered with custom color for weapons tiles 
-
-Wipeout.prototype.createWeaponTileMaterial = function(texture){
-	var material = new THREE.ShaderMaterial( {
-		uniforms: {
-			tileColor: { type: "v3", value: new THREE.Vector3() },
-			texture: { type: "t", value: texture }
-		},
-		vertexShader: "\
-			varying vec2 vUV;\
-			void main() {\
-				vUV = uv;\
-				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0 );\
-			}",
-		fragmentShader: "\
-			varying vec2 vUV;\
-			uniform vec3 tileColor;\
-			uniform sampler2D texture;\
-			void main() {\
-				gl_FragColor = texture2D( texture, vUV ) * vec4(tileColor, 1.0);\
-			}"
-	});
-	
-	return material;
-}
-
-// ----------------------------------------------------------------------------
 // Create a single ThreeJS MeshFaceMaterial with the given images
 
 Wipeout.prototype.createMeshFaceMaterial = function(images, vertexColors, side){
@@ -750,18 +729,20 @@ Wipeout.prototype.createMeshFaceMaterial = function(images, vertexColors, side){
 			texture.magFilter = THREE.NearestFilter;
 			texture.needsUpdate = true;	
 			
+			material = new THREE.MeshBasicMaterial({map:texture});
+			
 			if(i == 3 && vertexColors == THREE.FaceColors)
 			{
-				//this is a weapon tile
-				material = this.createWeaponTileMaterial(texture);
+				//this is weapon tile. store material, so we can update color later
+				material.vertexColors = THREE.NoColors;
 				this.weaponTileMaterial = material;
 			}
 			else
 			{
-				material = new THREE.MeshBasicMaterial({map:texture});
+				material.vertexColors = vertexColors;
 			}
 			
-			material.vertexColors = vertexColors;
+			
 			material.side = side;
 			material.alphaTest = 0.5;
 		}
@@ -863,7 +844,7 @@ Wipeout.prototype.createTrack = function(files) {
 		if(f.flags & Wipeout.TrackFace.FLAGS.BOOST)
 		{
 			//render boost tile as bright blue
-			color = new THREE.Color(0, 0, 2);
+			color = new THREE.Color(0.25, 0.25, 2);
 		}
 		
 		geometry.faces.push( new THREE.Face3(f.indices[0], f.indices[1], f.indices[2], null, color, materialIndex) );
