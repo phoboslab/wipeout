@@ -38,6 +38,9 @@ Wipeout.prototype.clear = function() {
 	this.sceneMaterial = {};
 	this.trackMaterial = null;
 	this.weaponTileMaterial = null;
+	
+	this.startTime = Date.now();
+	this.ticks = 0;
 };
 
 Wipeout.prototype.resize = function() {
@@ -64,38 +67,16 @@ Wipeout.prototype.animate = function() {
 
 	// Camera is in fly mode and we have a spline to follow?
 	if( this.activeCameraMode === 'fly' && this.cameraSpline ) {
-		var damping = 0.90;
+	
+		var elapsedTime = time - this.startTime;
+		var elapsedTicks = elapsedTime / 1000 * 60;
 
-		var loopTime = this.cameraSpline.points.length * 100;
-
-		// Camera position along the spline
-		var tmod = ( time % loopTime ) / loopTime;
-		var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
-		this.splineCamera.position.multiplyScalar(damping)
-			.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
-
-		// Camera lookAt along the spline
-		var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
-		var lookAtPos = this.cameraSpline.getPointAt( tmodLookAt ).clone();
-		this.splineCamera.currentLookAt = this.splineCamera.currentLookAt.multiplyScalar(damping)
-			.add(lookAtPos.clone().multiplyScalar(1-damping));
-		this.splineCamera.lookAt(this.splineCamera.currentLookAt);
-
-		// Roll into corners - there's probably an easier way to do this. This 
-		// takes the angle between the current camera position and the current
-		// lookAt, applies some damping and rolls the camera along its view vector
-		var cn = cameraPos.sub(this.splineCamera.position);
-		var tn = lookAtPos.sub(this.splineCamera.currentLookAt);
-		var roll = (Math.atan2(cn.z, cn.x) - Math.atan2(tn.z, tn.x));
-		roll += (roll > Math.PI)
-			? -Math.PI*2 
-			: (roll < -Math.PI) ? Math.PI * 2 : 0;
-
-		this.splineCamera.roll = this.splineCamera.roll * 0.95 + (roll)*0.1;
-		this.splineCamera.up = (new THREE.Vector3(0,1,0)).applyAxisAngle(
-			this.splineCamera.position.clone().sub(this.splineCamera.currentLookAt).normalize(),
-			this.splineCamera.roll * 0.25
-		);
+		//fixed time step loop (60hz)
+		while(this.ticks < elapsedTicks) {
+		
+			this.updateSplineCamera();
+			this.ticks++;
+		}
 		
 		this.rotateSpritesToCamera(this.splineCamera);
 		this.renderer.render(this.scene, this.splineCamera);
@@ -109,6 +90,43 @@ Wipeout.prototype.animate = function() {
 	}
 };
 
+Wipeout.prototype.updateSplineCamera = function() {
+	var damping = 0.90;
+	var time = this.ticks * 1000 / 60;
+
+	var loopTime = this.cameraSpline.points.length * 100;
+
+	// Camera position along the spline
+	var tmod = ( time % loopTime ) / loopTime;
+	var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
+	this.splineCamera.position.multiplyScalar(damping)
+		.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
+
+	// Camera lookAt along the spline
+	var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
+	var lookAtPos = this.cameraSpline.getPointAt( tmodLookAt ).clone();
+	this.splineCamera.currentLookAt = this.splineCamera.currentLookAt.multiplyScalar(damping)
+		.add(lookAtPos.clone().multiplyScalar(1-damping));
+	this.splineCamera.lookAt(this.splineCamera.currentLookAt);
+
+	// Roll into corners - there's probably an easier way to do this. This 
+	// takes the angle between the current camera position and the current
+	// lookAt, applies some damping and rolls the camera along its view vector
+	var cn = cameraPos.sub(this.splineCamera.position);
+	var tn = lookAtPos.sub(this.splineCamera.currentLookAt);
+	var roll = (Math.atan2(cn.z, cn.x) - Math.atan2(tn.z, tn.x));
+	roll += (roll > Math.PI)
+		? -Math.PI*2 
+		: (roll < -Math.PI) ? Math.PI * 2 : 0;
+
+	this.splineCamera.roll = this.splineCamera.roll * 0.95 + (roll)*0.1;
+	this.splineCamera.up = (new THREE.Vector3(0,1,0)).applyAxisAngle(
+		this.splineCamera.position.clone().sub(this.splineCamera.currentLookAt).normalize(),
+		this.splineCamera.roll * 0.25
+	);
+}
+
+
 Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 	for( var i = 0; i < this.sprites.length; i++ ) {
 		this.sprites[i].rotation.y = camera.rotation.y;
@@ -116,9 +134,9 @@ Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 };
 
 Wipeout.prototype.updateWeaponMaterial = function(time) {
-	//purple -> blue -> cyan -> greenyellow -> yellow -> amber (never 100% red or green)
-	var colors = [0x8000ff, 0x0000ff, 0x00ffff, 0x80ff00, 0xffff00, 0xff8000];
-	var t = time / 1500;
+	//purple -> blue -> cyan -> yellow -> amber (never 100% red or green)
+	var colors = [0x800080, 0x0000ff, 0x00ffff, 0xffff00, 0xff8000];
+	var t = time / 1050;
 	var index = Math.floor(t);
 	var alpha = t - index;
 	
@@ -142,7 +160,9 @@ Wipeout.TrackVertex = Struct.create(
 // .TRF Files ---------------------------------------------
 Wipeout.TrackFace = Struct.create( 
 	Struct.array('indices', Struct.uint16(), 4),
-	Struct.array('unknown', Struct.uint16(), 3),
+	Struct.int16('normalx'),
+	Struct.int16('normaly'),
+	Struct.int16('normalz'),
 	Struct.uint8('tile'),
 	Struct.uint8('flags'),
 	Struct.uint32('color')
@@ -182,6 +202,14 @@ Wipeout.TrackSection = Struct.create(
 	Struct.uint16('flags'),
 	Struct.skip(4)
 );
+
+// .TEX Files ---------------------------------------------
+
+Wipeout.TrackTexture = Struct.create( 
+	Struct.uint8('tile'),
+	Struct.uint8('flags')
+);
+
 
 Wipeout.TrackSection.FLAGS = {
 	JUMP: 1,
@@ -377,6 +405,11 @@ Wipeout.prototype.loadBinary = function(url, callback) {
 		if( req.status == 200 ) {
 			callback(req.response);
 		}
+		//ignore error if TRACK.TEX file is not found
+		else if( url.indexOf('TRACK.TEX')) {
+			callback(null);
+		}
+		
 	};
 	req.send();
 };
@@ -834,6 +867,21 @@ Wipeout.prototype.createTrack = function(files) {
 	// Load Faces
 	var faceCount = files.faces.byteLength / Wipeout.TrackFace.byteLength;
 	var faces = Wipeout.TrackFace.readStructs(files.faces, 0, faceCount);
+	
+	// Load track texture file (WO2097/WOXL only)
+	if(files.trackTexture) {
+		var trackTextureCount = files.trackTexture.byteLength / Wipeout.TrackTexture.byteLength;
+		var trackTextures = Wipeout.TrackTexture.readStructs(files.trackTexture, 0, trackTextureCount);
+	
+		//copy data from TEX to TRF structure
+		for( var i = 0; i < faces.length; i++ ) {
+			var f = faces[i];
+			var t = trackTextures[i];
+			
+			f.tile = t.tile;
+			f.flags = t.flags;
+		}
+	}
 
 	for( var i = 0; i < faces.length; i++ ) {
 		var f = faces[i];
@@ -976,6 +1024,7 @@ Wipeout.prototype.loadTrack = function( path ) {
 		textureIndex: path+'/LIBRARY.TTF',
 		vertices: path+'/TRACK.TRV',
 		faces: path+'/TRACK.TRF',
+		trackTexture: path+'/TRACK.TEX',
 		sections: path+'/TRACK.TRS'
 	}, function(files) { that.createTrack(files); });
 
