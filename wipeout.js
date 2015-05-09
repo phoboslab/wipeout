@@ -38,6 +38,9 @@ Wipeout.prototype.clear = function() {
 	this.sceneMaterial = {};
 	this.trackMaterial = null;
 	this.weaponTileMaterial = null;
+	
+	this.startTime = Date.now();
+	this.ticks = 0;
 };
 
 Wipeout.prototype.resize = function() {
@@ -64,38 +67,16 @@ Wipeout.prototype.animate = function() {
 
 	// Camera is in fly mode and we have a spline to follow?
 	if( this.activeCameraMode === 'fly' && this.cameraSpline ) {
-		var damping = 0.90;
+	
+		var elapsedTime = time - this.startTime;
+		var elapsedTicks = elapsedTime / 1000 * 60;
 
-		var loopTime = this.cameraSpline.points.length * 100;
-
-		// Camera position along the spline
-		var tmod = ( time % loopTime ) / loopTime;
-		var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
-		this.splineCamera.position.multiplyScalar(damping)
-			.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
-
-		// Camera lookAt along the spline
-		var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
-		var lookAtPos = this.cameraSpline.getPointAt( tmodLookAt ).clone();
-		this.splineCamera.currentLookAt = this.splineCamera.currentLookAt.multiplyScalar(damping)
-			.add(lookAtPos.clone().multiplyScalar(1-damping));
-		this.splineCamera.lookAt(this.splineCamera.currentLookAt);
-
-		// Roll into corners - there's probably an easier way to do this. This 
-		// takes the angle between the current camera position and the current
-		// lookAt, applies some damping and rolls the camera along its view vector
-		var cn = cameraPos.sub(this.splineCamera.position);
-		var tn = lookAtPos.sub(this.splineCamera.currentLookAt);
-		var roll = (Math.atan2(cn.z, cn.x) - Math.atan2(tn.z, tn.x));
-		roll += (roll > Math.PI)
-			? -Math.PI*2 
-			: (roll < -Math.PI) ? Math.PI * 2 : 0;
-
-		this.splineCamera.roll = this.splineCamera.roll * 0.95 + (roll)*0.1;
-		this.splineCamera.up = (new THREE.Vector3(0,1,0)).applyAxisAngle(
-			this.splineCamera.position.clone().sub(this.splineCamera.currentLookAt).normalize(),
-			this.splineCamera.roll * 0.25
-		);
+		//fixed time step loop (60hz)
+		while(this.ticks < elapsedTicks) {
+		
+			this.updateSplineCamera();
+			this.ticks++;
+		}
 		
 		this.rotateSpritesToCamera(this.splineCamera);
 		this.renderer.render(this.scene, this.splineCamera);
@@ -108,6 +89,43 @@ Wipeout.prototype.animate = function() {
 		this.renderer.render( this.scene, this.camera );
 	}
 };
+
+Wipeout.prototype.updateSplineCamera = function() {
+	var damping = 0.90;
+	var time = this.ticks * 1000 / 60;
+
+	var loopTime = this.cameraSpline.points.length * 100;
+
+	// Camera position along the spline
+	var tmod = ( time % loopTime ) / loopTime;
+	var cameraPos = this.cameraSpline.getPointAt( tmod ).clone();
+	this.splineCamera.position.multiplyScalar(damping)
+		.add(cameraPos.clone().add({x:0, y:600, z:0}).multiplyScalar(1-damping));
+
+	// Camera lookAt along the spline
+	var tmodLookAt = ( (time+800) % loopTime ) / loopTime;
+	var lookAtPos = this.cameraSpline.getPointAt( tmodLookAt ).clone();
+	this.splineCamera.currentLookAt = this.splineCamera.currentLookAt.multiplyScalar(damping)
+		.add(lookAtPos.clone().multiplyScalar(1-damping));
+	this.splineCamera.lookAt(this.splineCamera.currentLookAt);
+
+	// Roll into corners - there's probably an easier way to do this. This 
+	// takes the angle between the current camera position and the current
+	// lookAt, applies some damping and rolls the camera along its view vector
+	var cn = cameraPos.sub(this.splineCamera.position);
+	var tn = lookAtPos.sub(this.splineCamera.currentLookAt);
+	var roll = (Math.atan2(cn.z, cn.x) - Math.atan2(tn.z, tn.x));
+	roll += (roll > Math.PI)
+		? -Math.PI*2 
+		: (roll < -Math.PI) ? Math.PI * 2 : 0;
+
+	this.splineCamera.roll = this.splineCamera.roll * 0.95 + (roll)*0.1;
+	this.splineCamera.up = (new THREE.Vector3(0,1,0)).applyAxisAngle(
+		this.splineCamera.position.clone().sub(this.splineCamera.currentLookAt).normalize(),
+		this.splineCamera.roll * 0.25
+	);
+}
+
 
 Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 	for( var i = 0; i < this.sprites.length; i++ ) {
