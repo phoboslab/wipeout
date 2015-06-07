@@ -387,11 +387,6 @@ Wipeout.prototype.loadBinary = function(url, callback) {
 		if( req.status == 200 ) {
 			callback(req.response);
 		}
-		//ignore error if TRACK.TEX file is not found
-		else if( url.indexOf('TRACK.TEX')) {
-			callback(null);
-		}
-		
 	};
 	req.send();
 };
@@ -851,11 +846,11 @@ Wipeout.prototype.createTrack = function(files) {
 	var faces = Wipeout.TrackFace.readStructs(files.faces, 0, faceCount);
 	
 	// Load track texture file (WO2097/WOXL only)
-	if(files.trackTexture) {
+	if( files.trackTexture ) {
 		var trackTextureCount = files.trackTexture.byteLength / Wipeout.TrackTexture.byteLength;
 		var trackTextures = Wipeout.TrackTexture.readStructs(files.trackTexture, 0, trackTextureCount);
 	
-		//copy data from TEX to TRF structure
+		// Copy data from TEX to TRF structure
 		for( var i = 0; i < faces.length; i++ ) {
 			var f = faces[i];
 			var t = trackTextures[i];
@@ -989,7 +984,7 @@ Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
 	return position;
 }
 
-Wipeout.prototype.loadTrack = function( path ) {
+Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 	var that = this;
 	this.loadBinaries({
 		textures: path+'/SCENE.CMP',
@@ -1001,14 +996,20 @@ Wipeout.prototype.loadTrack = function( path ) {
 		objects: path+'/SKY.PRM'
 	}, function(files) { that.createScene(files, {scale:48}); });
 
-	this.loadBinaries({
+
+	var trackFiles = {
 		textures: path+'/LIBRARY.CMP',
 		textureIndex: path+'/LIBRARY.TTF',
 		vertices: path+'/TRACK.TRV',
 		faces: path+'/TRACK.TRF',
-		trackTexture: path+'/TRACK.TEX',
 		sections: path+'/TRACK.TRS'
-	}, function(files) { that.createTrack(files); });
+	};
+
+	if( loadTEXFile ) {
+		trackFiles.trackTexture = path+'/TRACK.TEX';
+	}
+
+	this.loadBinaries(trackFiles, function(files) { that.createTrack(files); });
 
 };
 
@@ -1032,13 +1033,13 @@ Wipeout.Tracks.Wipeout = [
 ];
 
 Wipeout.Tracks.Wipeout2097 = [
-	{path: "WIPEOUT2/TRACK01", name: "Talon's Reach"},
-	{path: "WIPEOUT2/TRACK08", name: "Sagarmatha"},
-	{path: "WIPEOUT2/TRACK13", name: "Valparaiso"},
-	{path: "WIPEOUT2/TRACK20", name: "Phenitia Park"},
-	{path: "WIPEOUT2/TRACK02", name: "Gare d'Europa"},
-	{path: "WIPEOUT2/TRACK17", name: "Odessa Keys"},
-	{path: "WIPEOUT2/TRACK06", name: "Vostok Island"},
-	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke"},
+	{path: "WIPEOUT2/TRACK01", name: "Talon's Reach", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK08", name: "Sagarmatha", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK13", name: "Valparaiso", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK20", name: "Phenitia Park", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK02", name: "Gare d'Europa", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK17", name: "Odessa Keys", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK06", name: "Vostok Island", hasTEXFile: true},
+	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke", hasTEXFile: true},
 	{path: "WIPEOUT2/TRACK04", name: "Unfinished Track"},
 ];

@@ -95,7 +95,7 @@
 
 				addOption(groupWipeout, track.name, (function(track, viewer){
 					viewer.clear();
-					viewer.loadTrack(track.path, track.rangesForCameraSpline);
+					viewer.loadTrack(track.path, track.hasTEXFile);
 				}).bind(null, track));
 			}
 
@@ -135,7 +135,7 @@
 
 				addOption(groupWipeout2097, track.name, (function(track, viewer){
 					viewer.clear();
-					viewer.loadTrack(track.path, track.rangesForCameraSpline);
+					viewer.loadTrack(track.path, track.hasTEXFile);
 				}).bind(null, track));
 			}
 
