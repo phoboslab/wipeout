@@ -346,7 +346,11 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.TEXTURED_QUAD_VERTEX_COLOR] = Struct.create
 
 Wipeout.Polygon[Wipeout.POLYGON_TYPE.UNKNOWN_0A] = Struct.create( 
 	Struct.struct('header', Wipeout.PolygonHeader),
-	Struct.array('unknown', Struct.uint16(), 6)
+	Struct.uint16('index'),
+	Struct.uint16('width'),
+	Struct.uint16('height'),
+	Struct.uint16('texture'),
+	Struct.uint32('color')
 );
 
 Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE] = Struct.create( 
@@ -522,7 +526,25 @@ Wipeout.prototype.createModelFromObject = function(object, spriteCollection) {
 			// and rotate them to the camera before rendering the frame
 			spriteCollection.push( sprite );
 		}
+		// Sprite UNKNOWN_0A
+		else if( p.header.type == Wipeout.POLYGON_TYPE.UNKNOWN_0A ) {
+			var v = geometry.vertices[p.index];
+			var color = this.int32ToColor( p.color );
 
+			// We can't use THREE.Sprite here, because they rotate to the camera on
+			// all axis. We just want rotation around the Y axis, so we do it manually.
+			var spriteMaterial = new THREE.MeshBasicMaterial({map: this.sceneMaterial.materials[p.texture].map, color: color, alphaTest:0.5});
+			var spriteMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial ); // PlaneBufferGeometry
+
+			var sprite = new THREE.Object3D();
+			sprite.position.set(v.x, v.y-p.height/2, v.z);
+			sprite.add( spriteMesh );
+			model.add(sprite);
+
+			// We have to collect sprites separately, so we can go through all of them 
+			// and rotate them to the camera before rendering the frame
+			spriteCollection.push( sprite );
+		}
 		// Tris or Quad
 		else if( p.indices ) {
 			var materialIndex = this.sceneMaterial.flatMaterialIndex;
