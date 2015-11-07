@@ -263,8 +263,8 @@ Wipeout.POLYGON_TYPE = {
 	TEXTURED_TRIS_VERTEX_COLOR: 0x06,
 	FLAT_QUAD_VERTEX_COLOR: 0x07,
 	TEXTURED_QUAD_VERTEX_COLOR: 0x08,
-	UNKNOWN_0A: 0x0A,
-	SPRITE: 0x0B
+	SPRITE_TOP_ANCHOR: 0x0A,
+	SPRITE_BOTTOM_ANCHOR: 0x0B
 };
 
 Wipeout.PolygonHeader = Struct.create(
@@ -344,12 +344,7 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.TEXTURED_QUAD_VERTEX_COLOR] = Struct.create
 	Struct.array('colors', Struct.uint32(), 4)
 );
 
-Wipeout.Polygon[Wipeout.POLYGON_TYPE.UNKNOWN_0A] = Struct.create( 
-	Struct.struct('header', Wipeout.PolygonHeader),
-	Struct.array('unknown', Struct.uint16(), 6)
-);
-
-Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE] = Struct.create( 
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR] = Struct.create( 
 	Struct.struct('header', Wipeout.PolygonHeader),
 	Struct.uint16('index'),
 	Struct.uint16('width'),
@@ -357,6 +352,10 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE] = Struct.create(
 	Struct.uint16('texture'),
 	Struct.uint32('color')
 );
+
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR] = 
+	Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR];
+
 
 
 // .TIM Files (Little Endian!) -------------------------------
@@ -504,9 +503,15 @@ Wipeout.prototype.createModelFromObject = function(object, spriteCollection) {
 		var p = object.polygons[i];
 		
 		// Sprite
-		if( p.header.type == Wipeout.POLYGON_TYPE.SPRITE ) {
+		if(
+			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR ||
+			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR 
+		) {
 			var v = geometry.vertices[p.index];
 			var color = this.int32ToColor( p.color );
+			var yOffset = p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR 
+				? p.height/2 
+				: -p.height/2;
 
 			// We can't use THREE.Sprite here, because they rotate to the camera on
 			// all axis. We just want rotation around the Y axis, so we do it manually.
@@ -514,7 +519,7 @@ Wipeout.prototype.createModelFromObject = function(object, spriteCollection) {
 			var spriteMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial ); // PlaneBufferGeometry
 
 			var sprite = new THREE.Object3D();
-			sprite.position.set(v.x, v.y+p.height/2, v.z);
+			sprite.position.set(v.x, v.y + yOffset, v.z);
 			sprite.add( spriteMesh );
 			model.add(sprite);
 
