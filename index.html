@@ -124,6 +124,13 @@
 				}, function(files) { viewer.createScene(files, { space:12800}); });
 			});
 
+			addOption(groupWipeout, 'Classes Logos', function(viewer){
+				viewer.clear();
+				viewer.loadBinaries({
+					objects: 'WIPEOUT/COMMON/CLASS.PRM'
+				}, function(files) { viewer.createScene(files, { space:500}); });
+			});
+
 			addOption(groupWipeout, '', function(){});
 
 
