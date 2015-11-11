@@ -60,7 +60,7 @@ Wipeout.prototype.animate = function() {
 	requestAnimationFrame( this.animate.bind(this) );
 	var time = Date.now();
 	
-	//update weapon tile color 
+	// Update weapon tile color 
 	if(this.weaponTileMaterial) {
 		this.updateWeaponMaterial(time);
 	}
@@ -71,7 +71,7 @@ Wipeout.prototype.animate = function() {
 		var elapsedTime = time - this.startTime;
 		var elapsedTicks = elapsedTime / 1000 * 60;
 
-		//fixed time step loop (60hz)
+		// Fixed time step loop (60hz)
 		while(this.ticks < elapsedTicks) {
 		
 			this.updateSplineCamera();
@@ -134,7 +134,7 @@ Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 };
 
 Wipeout.prototype.updateWeaponMaterial = function(time) {
-	//purple -> blue -> cyan -> yellow -> amber (never 100% red or green)
+	// Purple -> blue -> cyan -> yellow -> amber (never 100% red or green)
 	var colors = [0x800080, 0x0000ff, 0x00ffff, 0xffff00, 0xff8000];
 	var t = time / 1050;
 	var index = Math.floor(t);
@@ -149,6 +149,7 @@ Wipeout.prototype.updateWeaponMaterial = function(time) {
 // Wipeout Data Types
 
 // .TRV Files ---------------------------------------------
+
 Wipeout.TrackVertex = Struct.create( 
 	Struct.int32('x'),
 	Struct.int32('y'),
@@ -158,6 +159,7 @@ Wipeout.TrackVertex = Struct.create(
 
 
 // .TRF Files ---------------------------------------------
+
 Wipeout.TrackFace = Struct.create( 
 	Struct.array('indices', Struct.uint16(), 4),
 	Struct.int16('normalx'),
@@ -180,6 +182,7 @@ Wipeout.TrackFace.FLAGS = {
 
 
 // .TTF Files ---------------------------------------------
+
 Wipeout.TrackTextureIndex = Struct.create(
 	Struct.array('near', Struct.uint16(), 16), // 4x4 tiles
 	Struct.array('med', Struct.uint16(), 4), // 2x2 tiles
@@ -188,6 +191,7 @@ Wipeout.TrackTextureIndex = Struct.create(
 
 
 // .TRS Files ---------------------------------------------
+
 Wipeout.TrackSection = Struct.create(
 	Struct.int32('nextJunction'),
 	Struct.int32('previous'),
@@ -202,6 +206,7 @@ Wipeout.TrackSection = Struct.create(
 	Struct.uint16('flags'),
 	Struct.skip(4)
 );
+
 
 // .TEX Files ---------------------------------------------
 
@@ -220,6 +225,7 @@ Wipeout.TrackSection.FLAGS = {
 
 
 // .PRM Files ---------------------------------------------
+
 Wipeout.Vector3 = Struct.create(
 	Struct.int32('x'),
 	Struct.int32('y'),
@@ -263,8 +269,8 @@ Wipeout.POLYGON_TYPE = {
 	TEXTURED_TRIS_VERTEX_COLOR: 0x06,
 	FLAT_QUAD_VERTEX_COLOR: 0x07,
 	TEXTURED_QUAD_VERTEX_COLOR: 0x08,
-	UNKNOWN_0A: 0x0A,
-	SPRITE: 0x0B
+	SPRITE_TOP_ANCHOR: 0x0A,
+	SPRITE_BOTTOM_ANCHOR: 0x0B
 };
 
 Wipeout.PolygonHeader = Struct.create(
@@ -344,7 +350,7 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.TEXTURED_QUAD_VERTEX_COLOR] = Struct.create
 	Struct.array('colors', Struct.uint32(), 4)
 );
 
-Wipeout.Polygon[Wipeout.POLYGON_TYPE.UNKNOWN_0A] = Struct.create( 
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR] = Struct.create( 
 	Struct.struct('header', Wipeout.PolygonHeader),
 	Struct.uint16('index'),
 	Struct.uint16('width'),
@@ -353,17 +359,13 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.UNKNOWN_0A] = Struct.create(
 	Struct.uint32('color')
 );
 
-Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE] = Struct.create( 
-	Struct.struct('header', Wipeout.PolygonHeader),
-	Struct.uint16('index'),
-	Struct.uint16('width'),
-	Struct.uint16('height'),
-	Struct.uint16('texture'),
-	Struct.uint32('color')
-);
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR] = 
+	Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR];
+
 
 
 // .TIM Files (Little Endian!) -------------------------------
+
 Wipeout.IMAGE_TYPE = {
 	PALETTED_4_BPP: 0x08,
 	PALETTED_8_BPP: 0x09,
@@ -508,17 +510,23 @@ Wipeout.prototype.createModelFromObject = function(object, spriteCollection) {
 		var p = object.polygons[i];
 		
 		// Sprite
-		if( p.header.type == Wipeout.POLYGON_TYPE.SPRITE ) {
+		if(
+			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR ||
+			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR 
+		) {
 			var v = geometry.vertices[p.index];
 			var color = this.int32ToColor( p.color );
+			var yOffset = p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR 
+				? p.height/2 
+				: -p.height/2;
 
 			// We can't use THREE.Sprite here, because they rotate to the camera on
 			// all axis. We just want rotation around the Y axis, so we do it manually.
 			var spriteMaterial = new THREE.MeshBasicMaterial({map: this.sceneMaterial.materials[p.texture].map, color: color, alphaTest:0.5});
-			var spriteMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial ); // PlaneBufferGeometry
+			var spriteMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial );
 
 			var sprite = new THREE.Object3D();
-			sprite.position.set(v.x, v.y+p.height/2, v.z);
+			sprite.position.set(v.x, v.y + yOffset, v.z);
 			sprite.add( spriteMesh );
 			model.add(sprite);
 
@@ -526,25 +534,7 @@ Wipeout.prototype.createModelFromObject = function(object, spriteCollection) {
 			// and rotate them to the camera before rendering the frame
 			spriteCollection.push( sprite );
 		}
-		// Sprite UNKNOWN_0A
-		else if( p.header.type == Wipeout.POLYGON_TYPE.UNKNOWN_0A ) {
-			var v = geometry.vertices[p.index];
-			var color = this.int32ToColor( p.color );
 
-			// We can't use THREE.Sprite here, because they rotate to the camera on
-			// all axis. We just want rotation around the Y axis, so we do it manually.
-			var spriteMaterial = new THREE.MeshBasicMaterial({map: this.sceneMaterial.materials[p.texture].map, color: color, alphaTest:0.5});
-			var spriteMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial ); // PlaneBufferGeometry
-
-			var sprite = new THREE.Object3D();
-			sprite.position.set(v.x, v.y-p.height/2, v.z);
-			sprite.add( spriteMesh );
-			model.add(sprite);
-
-			// We have to collect sprites separately, so we can go through all of them 
-			// and rotate them to the camera before rendering the frame
-			spriteCollection.push( sprite );
-		}
 		// Tris or Quad
 		else if( p.indices ) {
 			var materialIndex = this.sceneMaterial.flatMaterialIndex;
@@ -762,6 +752,7 @@ Wipeout.prototype.readImage = function(buffer) {
 	return canvas;
 };
 
+
 // ----------------------------------------------------------------------------
 // Create a single ThreeJS MeshFaceMaterial with the given images
 
@@ -781,14 +772,12 @@ Wipeout.prototype.createMeshFaceMaterial = function(images, vertexColors, side){
 			
 			material = new THREE.MeshBasicMaterial({map:texture});
 			
-			if(i == 3 && vertexColors == THREE.FaceColors)
-			{
+			if( i === 3 && vertexColors === THREE.FaceColors ) {
 				//this is weapon tile. store material, so we can update color later
 				material.vertexColors = THREE.NoColors;
 				this.weaponTileMaterial = material;
 			}
-			else
-			{
+			else {
 				material.vertexColors = vertexColors;
 			}
 			
@@ -992,8 +981,8 @@ Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	
 	this.cameraSpline = new THREE.HermiteCurve3(cameraPoints, 0.5, 0.0);
 	
-	//increase arc length subdivisions to get constant camera speed during jumps
-	//this prevent camera going too fast due imprecise length distance estimations
+	// Increase arc length subdivisions to get constant camera speed during jumps.
+	// This prevent camera going too fast due imprecise length distance estimations.
 	this.cameraSpline.__arcLengthDivisions = 20000;
 
 	// Draw the Camera Spline
@@ -1002,6 +991,7 @@ Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	// 	new THREE.MeshBasicMaterial({color: 0xff00ff})
 	// ));
 };
+
 
 // ----------------------------------------------------------------------------
 // Get track section center position from track vertices
@@ -1023,6 +1013,8 @@ Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
 	position.divideScalar(verticescount);
 	return position;
 }
+
+
 
 Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 	var that = this;
@@ -1050,7 +1042,6 @@ Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 	}
 
 	this.loadBinaries(trackFiles, function(files) { that.createTrack(files); });
-
 };
 
 
