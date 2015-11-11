@@ -248,7 +248,9 @@ Wipeout.ObjectHeader = Struct.create(
 	Struct.string('name', 15),
 	Struct.skip(1),
 	Struct.uint16('vertexCount'),
-	Struct.skip(14),
+	Struct.skip(6),
+	Struct.uint16('commandCount'),
+	Struct.skip(6),
 	Struct.uint16('polygonCount'),
 	Struct.skip(20),
 	Struct.uint16('index1'),
@@ -270,7 +272,11 @@ Wipeout.POLYGON_TYPE = {
 	FLAT_QUAD_VERTEX_COLOR: 0x07,
 	TEXTURED_QUAD_VERTEX_COLOR: 0x08,
 	SPRITE_TOP_ANCHOR: 0x0A,
-	SPRITE_BOTTOM_ANCHOR: 0x0B
+	SPRITE_BOTTOM_ANCHOR: 0x0B,
+	GOURAUD_TRIANGLE: 0x10,
+	GOURAUD_QUAD: 0x12,
+	UNKNOWN_15: 0x15,
+	UNKNOWN_16: 0x16,
 };
 
 Wipeout.PolygonHeader = Struct.create(
@@ -362,7 +368,29 @@ Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR] = Struct.create(
 Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR] = 
 	Wipeout.Polygon[Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR];
 
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.GOURAUD_TRIANGLE] = Struct.create( 
+	Struct.struct('header', Wipeout.PolygonHeader),
+	Struct.array('indices', Struct.uint16(), 3),
+	Struct.array('indices1', Struct.uint16(), 3), // TODO could this be how a Gouraud polygon should be shaded ?
+	Struct.array('colors', Struct.uint32(), 3)
+);
 
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.GOURAUD_QUAD] = Struct.create( 
+	Struct.struct('header', Wipeout.PolygonHeader),
+	Struct.array('indices', Struct.uint16(), 4),
+	Struct.array('indices1', Struct.uint16(), 4), // TODO could this be how a Gouraud polygon should be shaded ?
+	Struct.array('colors', Struct.uint32(), 4)
+);
+
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.UNKNOWN_15] = Struct.create(
+	Struct.struct('header', Wipeout.PolygonHeader),
+	Struct.array('unknown', Struct.uint16(), 6)
+);
+
+Wipeout.Polygon[Wipeout.POLYGON_TYPE.UNKNOWN_16] = Struct.create(
+	Struct.struct('header', Wipeout.PolygonHeader),
+	Struct.array('unknown', Struct.uint16(), 12)
+);
 
 // .TIM Files (Little Endian!) -------------------------------
 
@@ -466,6 +494,11 @@ Wipeout.prototype.readObject = function(buffer, offset) {
 	
 	var vertices = Wipeout.Vertex.readStructs(buffer, offset, header.vertexCount);
 	offset += Wipeout.Vertex.byteLength * header.vertexCount;
+	
+	if (header.commandCount > 0)
+	{
+		offset += header.commandCount * 8;
+	}
 
 	var polygons = [];
 	for( var i = 0; i < header.polygonCount; i++ ) {
