@@ -491,88 +491,135 @@ Wipeout.prototype.readObject = function(buffer, offset) {
 // ----------------------------------------------------------------------------
 // Create a ThreeJS Model from a single PRM 3D Object
 
-Wipeout.prototype.createModelFromObject = function(object, spriteCollection) {
+Wipeout.prototype.createModelFromObject = function (object, spriteCollection) {
 	var model = new THREE.Object3D();
-	var geometry = new THREE.Geometry();
+
+	const vertices = [];
+	var materials = [];
+
+	for (var i = 0; i < object.vertices.length; i++) {
+		vertices.push(new THREE.Vector3(object.vertices[i].x, -object.vertices[i].y, -object.vertices[i].z));
+	}
 
 	model.position.set(object.header.position.x, -object.header.position.y, -object.header.position.z);
 
-	// Load vertices
-	for( var i = 0; i < object.vertices.length; i++ ) {
-		geometry.vertices.push( new THREE.Vector3(object.vertices[i].x, -object.vertices[i].y, -object.vertices[i].z) );
-	}
-
-	var whiteColor = new THREE.Color(1,1,1);
+	var whiteColor = new THREE.Color(1, 1, 1);
 	var nullVector = new THREE.Vector2(0, 0);
 
 	// Create faces
-	for( var i = 0; i < object.polygons.length; i++ ) {
+	for (var i = 0; i < object.polygons.length; i++) {
 		var p = object.polygons[i];
-		
+
 		// Sprite
-		if(
+		if (
 			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR ||
-			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR 
+			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR
 		) {
-			var v = geometry.vertices[p.index];
-			var color = this.int32ToColor( p.color );
-			var yOffset = p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR 
-				? p.height/2 
-				: -p.height/2;
+			var v = vertices[p.index];
+			var color = this.int32ToColor(p.color);
+			var yOffset = p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR
+				? p.height / 2
+				: -p.height / 2;
 
 			// We can't use THREE.Sprite here, because they rotate to the camera on
 			// all axis. We just want rotation around the Y axis, so we do it manually.
-			var spriteMaterial = new THREE.MeshBasicMaterial({map: this.sceneMaterial.materials[p.texture].map, color: color, alphaTest:0.5});
-			var spriteMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial );
+			var spriteMaterial = new THREE.MeshBasicMaterial({ map: this.sceneMaterial[p.texture].map, color: color, alphaTest: 0.5 });
+			var spriteMesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial);
 
 			var sprite = new THREE.Object3D();
 			sprite.position.set(v.x, v.y + yOffset, v.z);
-			sprite.add( spriteMesh );
+			sprite.add(spriteMesh);
 			model.add(sprite);
 
 			// We have to collect sprites separately, so we can go through all of them 
 			// and rotate them to the camera before rendering the frame
-			spriteCollection.push( sprite );
+			spriteCollection.push(sprite);
 		}
 
 		// Tris or Quad
-		else if( p.indices ) {
-			var materialIndex = this.sceneMaterial.flatMaterialIndex;
-			var c = [whiteColor, whiteColor, whiteColor, whiteColor];
+		else if (p.indices) {
+			var materialIndex = this.sceneMaterial.length - 1;
 			var uv = [nullVector, nullVector, nullVector, nullVector];
 
 			// Textured
-			if( typeof(p.texture) !== 'undefined' ) {
+			if (typeof (p.texture) !== 'undefined') {
 				materialIndex = p.texture;
-				
-				var img = this.sceneMaterial.materials[materialIndex].map.image;
-				for( var j = 0; j < p.uv.length; j++ ) {
-					uv[j] = new THREE.Vector2(p.uv[j].u/img.width, 1-p.uv[j].v/img.height);
+
+				var img = this.sceneMaterial[materialIndex].map.image;
+				for (var j = 0; j < p.uv.length; j++) {
+					uv[j] = new THREE.Vector2(p.uv[j].u / img.width, 1 - p.uv[j].v / img.height);
 				}
 			}
 
-			// Face or Vertex color?
+			if (materials[materialIndex] === undefined) {
+				materials[materialIndex] = [];
+			}
+
+			materials[materialIndex].push(p);
+		}
+	}
+
+	//group rendering by material
+	materials.forEach((faces, index) => {
+		var faceVertices = [];
+		var faceColors = [];
+		var faceUVs = [];
+
+		var c = [whiteColor, whiteColor, whiteColor, whiteColor];
+		var uv = [nullVector, nullVector, nullVector, nullVector];
+
+		var geometry = new THREE.BufferGeometry();
+
+		faces.forEach((p) => {
+			if (typeof (p.texture) !== 'undefined') {
+
+				var img = this.sceneMaterial[index].map.image;
+				for (var j = 0; j < p.uv.length; j++) {
+					uv[j] = new THREE.Vector2(p.uv[j].u / img.width, 1 - p.uv[j].v / img.height);
+				}
+			}
+
 			if( p.color || p.colors ) {
 				for( var j = 0; j < p.indices.length; j++ ) {
 					c[j] = this.int32ToColor( p.color || p.colors[j] );
 				}
 			}
 
-			geometry.faceVertexUvs[0].push([uv[2], uv[1], uv[0]]);
-			geometry.faces.push( new THREE.Face3(p.indices[2], p.indices[1], p.indices[0], null, [c[2], c[1], c[0]], materialIndex) );
+			faceVertices.push(vertices[p.indices[2]].x); faceVertices.push(vertices[p.indices[2]].y); faceVertices.push(vertices[p.indices[2]].z);
+			faceVertices.push(vertices[p.indices[1]].x); faceVertices.push(vertices[p.indices[1]].y); faceVertices.push(vertices[p.indices[1]].z);
+			faceVertices.push(vertices[p.indices[0]].x); faceVertices.push(vertices[p.indices[0]].y); faceVertices.push(vertices[p.indices[0]].z);
 
-			// Push extra UV and Face for Quads
-			if( p.indices.length === 4 ) {
-				geometry.faceVertexUvs[0].push([uv[2], uv[3], uv[1]]);
-				geometry.faces.push( new THREE.Face3(p.indices[2], p.indices[3], p.indices[1], null, [c[2], c[3], c[1]], materialIndex) );
-			}			
-		}
-	}
+			faceColors.push(c[2].r); faceColors.push(c[2].g); faceColors.push(c[2].b);
+			faceColors.push(c[1].r); faceColors.push(c[1].g); faceColors.push(c[1].b);
+			faceColors.push(c[0].r); faceColors.push(c[0].g); faceColors.push(c[0].b);
 
-	if( geometry.faces.length ) {
-		var mesh = new THREE.Mesh(geometry, this.sceneMaterial);
+			faceUVs.push(uv[2].x); faceUVs.push(uv[2].y);
+			faceUVs.push(uv[1].x); faceUVs.push(uv[1].y);
+			faceUVs.push(uv[0].x); faceUVs.push(uv[0].y);
+
+			if (p.indices.length === 4) {
+				faceVertices.push(vertices[p.indices[2]].x); faceVertices.push(vertices[p.indices[2]].y); faceVertices.push(vertices[p.indices[2]].z);
+				faceVertices.push(vertices[p.indices[3]].x); faceVertices.push(vertices[p.indices[3]].y); faceVertices.push(vertices[p.indices[3]].z);
+				faceVertices.push(vertices[p.indices[1]].x); faceVertices.push(vertices[p.indices[1]].y); faceVertices.push(vertices[p.indices[1]].z);
+
+				faceColors.push(c[2].r); faceColors.push(c[2].g); faceColors.push(c[2].b);
+				faceColors.push(c[3].r); faceColors.push(c[3].g); faceColors.push(c[3].b);
+				faceColors.push(c[1].r); faceColors.push(c[1].g); faceColors.push(c[1].b);
+
+				faceUVs.push(uv[2].x); faceUVs.push(uv[2].y);
+				faceUVs.push(uv[3].x); faceUVs.push(uv[3].y);
+				faceUVs.push(uv[1].x); faceUVs.push(uv[1].y);
+			}
+		});
+
+		geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(faceVertices), 3));
+		geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(faceColors), 3));
+		geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(faceUVs), 2));
+
+		var mesh = new THREE.Mesh(geometry, this.sceneMaterial[index]);
 		model.add(mesh);
-	}
+	});
+
 	return model;
 };
 
@@ -789,12 +836,9 @@ Wipeout.prototype.createMeshFaceMaterial = function(images, vertexColors, side){
 		materials.push(material);
 	}
 	
-	materials.push(basicMaterial)-1;
-	
-	var faceMat = new THREE.MeshFaceMaterial(materials);
-	faceMat.flatMaterialIndex = materials.length-1;
+	materials.push(basicMaterial);
 
-	return faceMat;
+	return materials;
 };
 
 
@@ -827,7 +871,7 @@ Wipeout.prototype.createScene = function(files, modify) {
 // ----------------------------------------------------------------------------
 // Add a track from TRV, TRF, CMP and TTF files to the scene
 
-Wipeout.prototype.createTrack = function(files) {
+Wipeout.prototype.createTrack = function (files) {
 	var rawImages = this.unpackImages(files.textures);
 	var images = rawImages.map(this.readImage.bind(this));
 
@@ -838,18 +882,18 @@ Wipeout.prototype.createTrack = function(files) {
 	// Extract the big (near) versions of these textures only. The near 
 	// version is composed of 4x4 32px tiles.
 	var composedImages = [];
-	for( var i = 0; i < textureIndex.length; i++ ) {
+	for (var i = 0; i < textureIndex.length; i++) {
 		var idx = textureIndex[i];
-		
+
 		var composedImage = document.createElement('canvas');
 		composedImage.width = 128;
 		composedImage.height = 128;
 		var ctx = composedImage.getContext('2d');
 
-		for( var x = 0; x < 4; x++ ) {
-			for( var y = 0; y < 4; y++ ) {
+		for (var x = 0; x < 4; x++) {
+			for (var y = 0; y < 4; y++) {
 				var image = images[idx.near[y * 4 + x]];
-				ctx.drawImage(image, x*32, y*32)
+				ctx.drawImage(image, x * 32, y * 32)
 			}
 		}
 		composedImages.push(composedImage);
@@ -859,70 +903,101 @@ Wipeout.prototype.createTrack = function(files) {
 	this.trackMaterial = this.createMeshFaceMaterial(composedImages, THREE.FaceColors, THREE.DoubleSide);
 
 	var model = new THREE.Object3D();
-	var geometry = new THREE.Geometry();
 
+	const vertices = [];
+	var colors = [];
+	var uvs = [];
+	var materials = [];
 
 	// Load vertices
 	var vertexCount = files.vertices.byteLength / Wipeout.TrackVertex.byteLength;
 	var rawVertices = Wipeout.TrackVertex.readStructs(files.vertices, 0, vertexCount);
 
-	for( var i = 0; i < rawVertices.length; i++ ) {
-		geometry.vertices.push( new THREE.Vector3(rawVertices[i].x, -rawVertices[i].y, -rawVertices[i].z) );
+	for (var i = 0; i < rawVertices.length; i++) {
+		vertices.push(new THREE.Vector3(rawVertices[i].x, -rawVertices[i].y, -rawVertices[i].z));
 	}
 
 	// Load Faces
 	var faceCount = files.faces.byteLength / Wipeout.TrackFace.byteLength;
 	var faces = Wipeout.TrackFace.readStructs(files.faces, 0, faceCount);
-	
+
 	// Load track texture file (WO2097/WOXL only)
-	if( files.trackTexture ) {
+	if (files.trackTexture) {
 		var trackTextureCount = files.trackTexture.byteLength / Wipeout.TrackTexture.byteLength;
 		var trackTextures = Wipeout.TrackTexture.readStructs(files.trackTexture, 0, trackTextureCount);
-	
+
 		// Copy data from TEX to TRF structure
-		for( var i = 0; i < faces.length; i++ ) {
+		for (var i = 0; i < faces.length; i++) {
 			var f = faces[i];
 			var t = trackTextures[i];
-			
+
 			f.tile = t.tile;
 			f.flags = t.flags;
 		}
 	}
-
-	for( var i = 0; i < faces.length; i++ ) {
+	var midx = 0;
+	for (var i = 0; i < faces.length; i++) {
 		var f = faces[i];
 
-		var color = this.int32ToColor( f.color );
-		var materialIndex = f.tile;
-		
-		if(f.flags & Wipeout.TrackFace.FLAGS.BOOST)
-		{
-			//render boost tile as bright blue
-			color = new THREE.Color(0.25, 0.25, 2);
+		if (materials[f.tile] === undefined) {
+			materials[f.tile] = [];
 		}
-		
-		geometry.faces.push( new THREE.Face3(f.indices[0], f.indices[1], f.indices[2], null, color, materialIndex) );
-		geometry.faces.push( new THREE.Face3(f.indices[2], f.indices[3], f.indices[0], null, color, materialIndex) );
-
-		var flipx = (f.flags & Wipeout.TrackFace.FLAGS.FLIP) ? 1: 0;
-		geometry.faceVertexUvs[0].push([
-			new THREE.Vector2(1-flipx, 1),
-			new THREE.Vector2(0+flipx, 1),
-			new THREE.Vector2(0+flipx, 0)
-		]);
-		geometry.faceVertexUvs[0].push([
-			new THREE.Vector2(0+flipx, 0), 
-			new THREE.Vector2(1-flipx, 0), 
-			new THREE.Vector2(1-flipx, 1)
-		]);
+		materials[f.tile].push(f);
 	}
 
-	var mesh = new THREE.Mesh(geometry, this.trackMaterial);
-	model.add(mesh);
-	this.scene.add( model );
+	materials.forEach((faces, index) => {
+		var faceVertices = [];
+		var faceColors = [];
+		var faceUVs = [];
 
+		var geometry = new THREE.BufferGeometry();
 
-	this.createCameraSpline(files.sections, faces, geometry.vertices);
+		faces.forEach((f) => {
+			var c = this.int32ToColor(f.color);
+
+			if (f.flags & Wipeout.TrackFace.FLAGS.BOOST) {
+				//render boost tile as bright blue
+				c = new THREE.Color(0.25, 0.25, 2);
+			}
+
+			faceVertices.push(vertices[f.indices[0]].x); faceVertices.push(vertices[f.indices[0]].y); faceVertices.push(vertices[f.indices[0]].z);
+			faceVertices.push(vertices[f.indices[1]].x); faceVertices.push(vertices[f.indices[1]].y); faceVertices.push(vertices[f.indices[1]].z);
+			faceVertices.push(vertices[f.indices[2]].x); faceVertices.push(vertices[f.indices[2]].y); faceVertices.push(vertices[f.indices[2]].z);
+
+			faceVertices.push(vertices[f.indices[2]].x); faceVertices.push(vertices[f.indices[2]].y); faceVertices.push(vertices[f.indices[2]].z);
+			faceVertices.push(vertices[f.indices[3]].x); faceVertices.push(vertices[f.indices[3]].y); faceVertices.push(vertices[f.indices[3]].z);
+			faceVertices.push(vertices[f.indices[0]].x); faceVertices.push(vertices[f.indices[0]].y); faceVertices.push(vertices[f.indices[0]].z);
+
+			faceColors.push(c.r); faceColors.push(c.g); faceColors.push(c.b);
+			faceColors.push(c.r); faceColors.push(c.g); faceColors.push(c.b);
+			faceColors.push(c.r); faceColors.push(c.g); faceColors.push(c.b);
+
+			faceColors.push(c.r); faceColors.push(c.g); faceColors.push(c.b);
+			faceColors.push(c.r); faceColors.push(c.g); faceColors.push(c.b);
+			faceColors.push(c.r); faceColors.push(c.g); faceColors.push(c.b);
+
+			var flipx = (f.flags & Wipeout.TrackFace.FLAGS.FLIP) ? 1 : 0;
+
+			faceUVs.push(1 - flipx); faceUVs.push(1);
+			faceUVs.push(0 + flipx); faceUVs.push(1);
+			faceUVs.push(0 + flipx); faceUVs.push(0);
+
+			faceUVs.push(0 + flipx); faceUVs.push(0);
+			faceUVs.push(1 - flipx); faceUVs.push(0);
+			faceUVs.push(1 - flipx); faceUVs.push(1);
+		});
+
+		geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(faceVertices), 3));
+		geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(faceColors), 3));
+		geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(faceUVs), 2));
+
+		var mesh = new THREE.Mesh(geometry, this.trackMaterial[index]);
+		model.add(mesh);
+	});
+
+	this.scene.add(model);
+
+	this.createCameraSpline(files.sections, faces, vertices);
 };
 
 
@@ -983,7 +1058,7 @@ Wipeout.prototype.createCameraSpline = function(buffer, faces, vertices) {
 	
 	// Increase arc length subdivisions to get constant camera speed during jumps.
 	// This prevent camera going too fast due imprecise length distance estimations.
-	this.cameraSpline.__arcLengthDivisions = 20000;
+	this.cameraSpline.arcLengthDivisions = 20000;
 
 	// Draw the Camera Spline
 	// this.scene.add( new THREE.Mesh(
