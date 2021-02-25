@@ -2,7 +2,7 @@
 //tension: 1 high, 0 normal, -1 low
 //bias: 0 is even, positive is towards first segment, negative towards the other
 
-THREE.Curve.Utils.hermiteInterpolate = function (p0, p1, p2, p3, t, tension, bias) {
+var _hermiteInterpolate =  (p0, p1, p2, p3, t, tension, bias) => {
 	var m0 = (p1 - p0) * (1 + bias) * (1 - tension) / 2 
 	       + (p2 - p1) * (1 - bias) * (1 - tension) / 2;
 	
@@ -45,9 +45,9 @@ THREE.HermiteCurve3 = THREE.Curve.create(
 		
 		var vector = new THREE.Vector3();
 		
-		vector.x = THREE.Curve.Utils.hermiteInterpolate( point0.x, point1.x, point2.x, point3.x, weight, this.tension, this.bias );
-		vector.y = THREE.Curve.Utils.hermiteInterpolate( point0.y, point1.y, point2.y, point3.y, weight, this.tension, this.bias );
-		vector.z = THREE.Curve.Utils.hermiteInterpolate( point0.z, point1.z, point2.z, point3.z, weight, this.tension, this.bias );
+		vector.x = _hermiteInterpolate( point0.x, point1.x, point2.x, point3.x, weight, this.tension, this.bias );
+		vector.y = _hermiteInterpolate( point0.y, point1.y, point2.y, point3.y, weight, this.tension, this.bias );
+		vector.z = _hermiteInterpolate( point0.z, point1.z, point2.z, point3.z, weight, this.tension, this.bias );
 		
 		return vector;
 	}
