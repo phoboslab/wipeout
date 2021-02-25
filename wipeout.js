@@ -495,10 +495,14 @@ Wipeout.prototype.createModelFromObject = function (object, spriteCollection) {
 	var model = new THREE.Object3D();
 
 	const vertices = [];
-	var materials = [];
+	const uvs = [];
+	const colors = [];
+	const materials = [];
 
 	for (var i = 0; i < object.vertices.length; i++) {
-		vertices.push(new THREE.Vector3(object.vertices[i].x, -object.vertices[i].y, -object.vertices[i].z));
+		vertices.push(object.vertices[i].x);
+		vertices.push(-object.vertices[i].y);
+		vertices.push(-object.vertices[i].z);
 	}
 
 	model.position.set(object.header.position.x, -object.header.position.y, -object.header.position.z);
@@ -511,11 +515,11 @@ Wipeout.prototype.createModelFromObject = function (object, spriteCollection) {
 		var p = object.polygons[i];
 
 		// Sprite
-		if (
-			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR ||
-			p.header.type === Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR
-		) {
-			var v = vertices[p.index];
+		if (p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR || p.header.type === Wipeout.POLYGON_TYPE.SPRITE_TOP_ANCHOR) {
+			var vx = vertices[p.index * 3];
+			var vy = vertices[p.index * 3 + 1];
+			var vz = vertices[p.index * 3 + 2];
+
 			var color = this.int32ToColor(p.color);
 			var yOffset = p.header.type === Wipeout.POLYGON_TYPE.SPRITE_BOTTOM_ANCHOR
 				? p.height / 2
@@ -527,7 +531,7 @@ Wipeout.prototype.createModelFromObject = function (object, spriteCollection) {
 			var spriteMesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(p.width, p.height), spriteMaterial);
 
 			var sprite = new THREE.Object3D();
-			sprite.position.set(v.x, v.y + yOffset, v.z);
+			sprite.position.set(vx, vy + yOffset, vz);
 			sprite.add(spriteMesh);
 			model.add(sprite);
 
@@ -539,6 +543,7 @@ Wipeout.prototype.createModelFromObject = function (object, spriteCollection) {
 		// Tris or Quad
 		else if (p.indices) {
 			var materialIndex = this.sceneMaterial.length - 1;
+			var c = [whiteColor, whiteColor, whiteColor, whiteColor];
 			var uv = [nullVector, nullVector, nullVector, nullVector];
 
 			// Textured
@@ -547,76 +552,65 @@ Wipeout.prototype.createModelFromObject = function (object, spriteCollection) {
 
 				var img = this.sceneMaterial[materialIndex].map.image;
 				for (var j = 0; j < p.uv.length; j++) {
-					uv[j] = new THREE.Vector2(p.uv[j].u / img.width, 1 - p.uv[j].v / img.height);
+					uv[j] = new THREE.Vector2(p.uv[j].u/img.width, 1 - p.uv[j].v/img.height);
 				}
 			}
 
-			if (materials[materialIndex] === undefined) {
-				materials[materialIndex] = [];
-			}
-
-			materials[materialIndex].push(p);
-		}
-	}
-
-	//group rendering by material
-	materials.forEach((faces, index) => {
-		var faceVertices = [];
-		var faceColors = [];
-		var faceUVs = [];
-
-		var c = [whiteColor, whiteColor, whiteColor, whiteColor];
-		var uv = [nullVector, nullVector, nullVector, nullVector];
-
-		var geometry = new THREE.BufferGeometry();
-
-		faces.forEach((p) => {
-			if (typeof (p.texture) !== 'undefined') {
-
-				var img = this.sceneMaterial[index].map.image;
-				for (var j = 0; j < p.uv.length; j++) {
-					uv[j] = new THREE.Vector2(p.uv[j].u / img.width, 1 - p.uv[j].v / img.height);
-				}
-			}
-
+			// Face or Vertex color?
 			if( p.color || p.colors ) {
 				for( var j = 0; j < p.indices.length; j++ ) {
 					c[j] = this.int32ToColor( p.color || p.colors[j] );
 				}
 			}
 
-			faceVertices.push(vertices[p.indices[2]].x); faceVertices.push(vertices[p.indices[2]].y); faceVertices.push(vertices[p.indices[2]].z);
-			faceVertices.push(vertices[p.indices[1]].x); faceVertices.push(vertices[p.indices[1]].y); faceVertices.push(vertices[p.indices[1]].z);
-			faceVertices.push(vertices[p.indices[0]].x); faceVertices.push(vertices[p.indices[0]].y); faceVertices.push(vertices[p.indices[0]].z);
+			var indices = [];
 
-			faceColors.push(c[2].r); faceColors.push(c[2].g); faceColors.push(c[2].b);
-			faceColors.push(c[1].r); faceColors.push(c[1].g); faceColors.push(c[1].b);
-			faceColors.push(c[0].r); faceColors.push(c[0].g); faceColors.push(c[0].b);
+			indices.push(p.indices[2]);
+			indices.push(p.indices[1]);
+			indices.push(p.indices[0]);
 
-			faceUVs.push(uv[2].x); faceUVs.push(uv[2].y);
-			faceUVs.push(uv[1].x); faceUVs.push(uv[1].y);
-			faceUVs.push(uv[0].x); faceUVs.push(uv[0].y);
+			uvs[p.indices[0] * 2] = uv[0].x;uvs[p.indices[0] * 2 + 1] = uv[0].y;
+			uvs[p.indices[1] * 2] = uv[1].x;uvs[p.indices[1] * 2 + 1] = uv[1].y;
+			uvs[p.indices[2] * 2] = uv[2].x;uvs[p.indices[2] * 2 + 1] = uv[2].y;
+
+			colors[p.indices[0] * 3] = c[0].r;colors[p.indices[0] * 3 + 1] = c[0].g;colors[p.indices[0] * 3 + 2] = c[0].b;
+			colors[p.indices[1] * 3] = c[1].r;colors[p.indices[1] * 3 + 1] = c[1].g;colors[p.indices[1] * 3 + 2] = c[1].b;
+			colors[p.indices[2] * 3] = c[2].r;colors[p.indices[2] * 3 + 1] = c[2].g;colors[p.indices[2] * 3 + 2] = c[2].b;
 
 			if (p.indices.length === 4) {
-				faceVertices.push(vertices[p.indices[2]].x); faceVertices.push(vertices[p.indices[2]].y); faceVertices.push(vertices[p.indices[2]].z);
-				faceVertices.push(vertices[p.indices[3]].x); faceVertices.push(vertices[p.indices[3]].y); faceVertices.push(vertices[p.indices[3]].z);
-				faceVertices.push(vertices[p.indices[1]].x); faceVertices.push(vertices[p.indices[1]].y); faceVertices.push(vertices[p.indices[1]].z);
+				indices.push(p.indices[2]);
+				indices.push(p.indices[3]);
+				indices.push(p.indices[1]);
 
-				faceColors.push(c[2].r); faceColors.push(c[2].g); faceColors.push(c[2].b);
-				faceColors.push(c[3].r); faceColors.push(c[3].g); faceColors.push(c[3].b);
-				faceColors.push(c[1].r); faceColors.push(c[1].g); faceColors.push(c[1].b);
+				uvs[p.indices[3] * 2] = uv[3].x;
+				uvs[p.indices[3] * 2 + 1] = uv[3].y;
 
-				faceUVs.push(uv[2].x); faceUVs.push(uv[2].y);
-				faceUVs.push(uv[3].x); faceUVs.push(uv[3].y);
-				faceUVs.push(uv[1].x); faceUVs.push(uv[1].y);
+				colors[p.indices[3] * 3] = c[3].r;
+				colors[p.indices[3] * 3 + 1] = c[3].g;
+				colors[p.indices[3] * 3 + 2] = c[3].b;
 			}
-		});
 
-		geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(faceVertices), 3));
-		geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(faceColors), 3));
-		geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(faceUVs), 2));
+			if (materials[materialIndex] === undefined) {
+				materials[materialIndex] = [];
+			}
 
-		var mesh = new THREE.Mesh(geometry, this.sceneMaterial[index]);
+			indices.forEach((index) => materials[materialIndex].push(index));
+		}
+	}
+
+	var positionAttribute = new THREE.BufferAttribute(new Float32Array(vertices), 3);
+	var colorAttribute = new THREE.BufferAttribute(new Float32Array(colors),3);
+	var uvAtrribute = new THREE.BufferAttribute(new Float32Array(uvs),2);
+
+	//group rendering by material
+	materials.forEach((indices, materialIndex) => {
+		var geometry = new THREE.BufferGeometry();
+		geometry.setAttribute('position', positionAttribute);
+		geometry.setAttribute('color', colorAttribute);
+		geometry.setAttribute('uv', uvAtrribute);
+		geometry.setIndex(indices);
+
+		var mesh = new THREE.Mesh(geometry, this.sceneMaterial[materialIndex]);
 		model.add(mesh);
 	});
 
@@ -905,8 +899,6 @@ Wipeout.prototype.createTrack = function (files) {
 	var model = new THREE.Object3D();
 
 	const vertices = [];
-	var colors = [];
-	var uvs = [];
 	var materials = [];
 
 	// Load vertices
@@ -935,7 +927,7 @@ Wipeout.prototype.createTrack = function (files) {
 			f.flags = t.flags;
 		}
 	}
-	var midx = 0;
+
 	for (var i = 0; i < faces.length; i++) {
 		var f = faces[i];
 
