@@ -5,4 +5,5 @@ WIPEOUT2/*
 WIPEOUT64/*
 !WIPEOUT64/README.md
 soundtrack/*
-mongoose.exe
+mongoose*
+.vscode/*
