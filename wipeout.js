@@ -697,10 +697,10 @@ Wipeout.prototype.readImage = function(buffer) {
 	offset += 4; // skip data size
 
 	var pixelsPerShort = 1;
-	if( file.type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
+	if( type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
 		pixelsPerShort = 2;
 	}
-	else if( file.type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
+	else if( type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
 		pixelsPerShort = 4;
 	}
 
@@ -724,13 +724,13 @@ Wipeout.prototype.readImage = function(buffer) {
 	}
 
 	var entries = dim.width * dim.height;
-	if( file.type === Wipeout.IMAGE_TYPE.TRUE_COLOR_16_BPP ) {
+	if( type === Wipeout.IMAGE_TYPE.TRUE_COLOR_16_BPP ) {
 		for( var i = 0; i < entries; i++ ) {
 			var c = data.getUint16(offset+i*2, true);
 			putPixel(pixels.data, i*4, c);
 		}
 	}
-	else if( file.type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
+	else if( type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
 		for( var i = 0; i < entries; i++ ) {
 			var p = data.getUint16(offset+i*2, true);
 
@@ -738,7 +738,7 @@ Wipeout.prototype.readImage = function(buffer) {
 			putPixel(pixels.data, i*8+4, palette[ (p>>8) & 0xff ]);
 		}
 	}
-	else if( file.type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
+	else if( type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
 		for( var i = 0; i < entries; i++ ) {
 			var p = data.getUint16(offset+i*2, true);
 
