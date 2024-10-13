@@ -1025,9 +1025,19 @@ Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
 Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 	var that = this;
 	this.loadBinaries({
-		textures: path+'/SCENE.CMP',
-		objects: path+'/SCENE.PRM'
+		textures: path+'/sceneCom.CMP',
+		objects: path+'/sceneCom.PRM'
 	}, function(files) { that.createScene(files); });
+
+	this.loadBinaries({
+		textures: path+'/sceneSin.CMP',
+		objects: path+'/sceneSin.PRM'
+	}, function(files) { that.createScene(files); });
+
+	/*this.loadBinaries({
+		textures: path+'/sceneMul.CMP',
+		objects: path+'/sceneMul.PRM'
+	}, function(files) { that.createScene(files); });*/
 
 	this.loadBinaries({
 		textures: path+'/SKY.CMP',
