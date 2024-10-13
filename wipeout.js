@@ -1042,7 +1042,7 @@ Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 	this.loadBinaries({
 		textures: path+'/SKY.CMP',
 		objects: path+'/SKY.PRM'
-	}, function(files) { that.createScene(files, {scale:48}); });
+	}, function(files) { that.createScene(files, {scale:64}); });
 
 
 	var trackFiles = {
