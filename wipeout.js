@@ -828,7 +828,7 @@ Wipeout.prototype.createScene = function(files, modify) {
 // ----------------------------------------------------------------------------
 // Add a track from TRV, TRF, CMP and TTF files to the scene
 
-Wipeout.prototype.createTrack = function(files) {
+Wipeout.prototype.createTrack = function(files, isWipeout64) {
 	var rawImages = this.unpackImages(files.textures);
 	var images = rawImages.map(this.readImage.bind(this));
 
@@ -836,8 +836,6 @@ Wipeout.prototype.createTrack = function(files) {
 	var indexEntries = files.textureIndex.byteLength / Wipeout.TrackTextureIndex.byteLength;
 	var textureIndex = Wipeout.TrackTextureIndex.readStructs(files.textureIndex, 0, indexEntries);
 
-	var isWipeout64 = true; // TODO as method parameter
-	
 	const size1 = isWipeout64 ? 64 : 128;
 	const size2 = isWipeout64 ? 64 : 32;
 	const tiles = isWipeout64 ? 1 : 4;
@@ -1022,22 +1020,31 @@ Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
 
 
 
-Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
+Wipeout.prototype.loadTrack = function( path, loadTEXFile, isWipeout64 ) {
 	var that = this;
-	this.loadBinaries({
-		textures: path+'/sceneCom.CMP',
-		objects: path+'/sceneCom.PRM'
-	}, function(files) { that.createScene(files); });
 
-	this.loadBinaries({
-		textures: path+'/sceneSin.CMP',
-		objects: path+'/sceneSin.PRM'
-	}, function(files) { that.createScene(files); });
+	if (isWipeout64) {
+		this.loadBinaries({
+			textures: path+'/sceneCom.CMP',
+			objects: path+'/sceneCom.PRM'
+		}, function(files) { that.createScene(files); });
 
-	/*this.loadBinaries({
-		textures: path+'/sceneMul.CMP',
-		objects: path+'/sceneMul.PRM'
-	}, function(files) { that.createScene(files); });*/
+		this.loadBinaries({
+			textures: path+'/sceneSin.CMP',
+			objects: path+'/sceneSin.PRM'
+		}, function(files) { that.createScene(files); });
+
+		/*this.loadBinaries({
+			textures: path+'/sceneMul.CMP',
+			objects: path+'/sceneMul.PRM'
+		}, function(files) { that.createScene(files); });*/
+	}
+	else {
+		this.loadBinaries({
+			textures: path+'/scene.CMP',
+			objects: path+'/scene.PRM'
+		}, function(files) { that.createScene(files); });
+	}
 
 	this.loadBinaries({
 		textures: path+'/SKY.CMP',
@@ -1057,7 +1064,7 @@ Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 		trackFiles.trackTexture = path+'/TRACK.TEX';
 	}
 
-	this.loadBinaries(trackFiles, function(files) { that.createTrack(files); });
+	this.loadBinaries(trackFiles, function(files) { that.createTrack(files, isWipeout64); });
 };
 
 
@@ -1089,4 +1096,14 @@ Wipeout.Tracks.Wipeout2097 = [
 	{path: "WIPEOUT2/TRACK06", name: "Vostok Island", hasTEXFile: true},
 	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke", hasTEXFile: true},
 	{path: "WIPEOUT2/TRACK04", name: "Unfinished Track"},
+];
+
+Wipeout.Tracks.Wipeout64 = [
+	{path: "WIPEOUT64/TRACK01", name: "Klies Bridge", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK02", name: "Qoron IV", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK03", name: "Sokana", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK04", name: "Dyroness", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK05", name: "Machaon II", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK06", name: "Terafumos", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK07", name: "Velocitar", isWipeout64: true}
 ];
