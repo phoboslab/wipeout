@@ -686,9 +686,10 @@ Wipeout.prototype.readImage = function(buffer) {
 	var offset = Wipeout.ImageFileHeader.byteLength;
 
 	var palette = null;
+	const type = file.type & 0xF;
 	if( 
-		file.type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ||
-		file.type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP
+		type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ||
+		type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP
 	) {
 		palette = new Uint16Array(buffer, offset, file.paletteColors);
 		offset += file.paletteColors * 2;
@@ -835,21 +836,26 @@ Wipeout.prototype.createTrack = function(files) {
 	var indexEntries = files.textureIndex.byteLength / Wipeout.TrackTextureIndex.byteLength;
 	var textureIndex = Wipeout.TrackTextureIndex.readStructs(files.textureIndex, 0, indexEntries);
 
+	var isWipeout64 = true; // TODO as method parameter
+	
+	const size1 = isWipeout64 ? 64 : 128;
+	const size2 = isWipeout64 ? 64 : 32;
+	const tiles = isWipeout64 ? 1 : 4;
+
 	// Extract the big (near) versions of these textures only. The near 
 	// version is composed of 4x4 32px tiles.
 	var composedImages = [];
-	for( var i = 0; i < textureIndex.length; i++ ) {
-		var idx = textureIndex[i];
+	for( var i = 0; i < (isWipeout64 ? images.length : textureIndex.length); i++ ) {
+		var idx = isWipeout64 ? undefined : textureIndex[i];
 		
 		var composedImage = document.createElement('canvas');
-		composedImage.width = 128;
-		composedImage.height = 128;
+		composedImage.width = size1;
+		composedImage.height = size1;
 		var ctx = composedImage.getContext('2d');
-
-		for( var x = 0; x < 4; x++ ) {
-			for( var y = 0; y < 4; y++ ) {
-				var image = images[idx.near[y * 4 + x]];
-				ctx.drawImage(image, x*32, y*32)
+		for( var x = 0; x < tiles; x++ ) {
+			for( var y = 0; y < tiles; y++ ) {
+				var image = isWipeout64 ? images[i] : images[idx.near[y * 4 + x]];
+				ctx.drawImage(image, x*size2, y*size2)
 			}
 		}
 		composedImages.push(composedImage);

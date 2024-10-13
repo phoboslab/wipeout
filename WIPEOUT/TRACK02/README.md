@@ -1,0 +1,5 @@
+- this is altima vii - venom
+- copy some wipeout 64 level here
+- rename sceneSin.* to scene.*
+- copy mongoose.exe to root and start it in vscode terminal (https://mongoose.ws/binary/)
+- run the vscode debug configuration
