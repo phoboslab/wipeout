@@ -16,6 +16,7 @@ var Wipeout = function(containerId, width, height){
 };
 
 Wipeout.prototype.clear = function() {
+	this.clock = new THREE.Clock();
 	this.scene = new THREE.Scene();
 	this.sprites = [];
 
@@ -24,9 +25,10 @@ Wipeout.prototype.clear = function() {
 	this.camera.position.set( 0, 10000, 50000 );
 	this.camera.rotation.order = 'YZX';
 
-	this.controls = new THREE.OrbitControls( this.camera, this.renderer.domElement );
-	this.controls.damping = 0.2;
-	this.controls.zoomSpeed = 2;
+	this.controls = new THREE.FirstPersonControls(this.camera, this.renderer.domElement);
+	this.controls.movementSpeed = 16000.0;
+	// this.controls.damping = 0.2;
+	// this.controls.zoomSpeed = 2;
 
 	// Add Camera for fly through
 	this.splineCamera = new THREE.PerspectiveCamera( 84, window.innerWidth / window.innerHeight, 64, 2048576 );
@@ -84,7 +86,7 @@ Wipeout.prototype.animate = function() {
 
 	// Default Orbit camera
 	else {
-		this.controls.update();
+		this.controls.update(this.clock.getDelta());
 		this.rotateSpritesToCamera(this.camera);
 		this.renderer.render( this.scene, this.camera );
 	}
