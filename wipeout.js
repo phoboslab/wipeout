@@ -688,9 +688,10 @@ Wipeout.prototype.readImage = function(buffer) {
 	var offset = Wipeout.ImageFileHeader.byteLength;
 
 	var palette = null;
+	const type = file.type & 0xF;
 	if( 
-		file.type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ||
-		file.type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP
+		type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ||
+		type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP
 	) {
 		palette = new Uint16Array(buffer, offset, file.paletteColors);
 		offset += file.paletteColors * 2;
@@ -698,10 +699,10 @@ Wipeout.prototype.readImage = function(buffer) {
 	offset += 4; // skip data size
 
 	var pixelsPerShort = 1;
-	if( file.type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
+	if( type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
 		pixelsPerShort = 2;
 	}
-	else if( file.type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
+	else if( type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
 		pixelsPerShort = 4;
 	}
 
@@ -725,13 +726,13 @@ Wipeout.prototype.readImage = function(buffer) {
 	}
 
 	var entries = dim.width * dim.height;
-	if( file.type === Wipeout.IMAGE_TYPE.TRUE_COLOR_16_BPP ) {
+	if( type === Wipeout.IMAGE_TYPE.TRUE_COLOR_16_BPP ) {
 		for( var i = 0; i < entries; i++ ) {
 			var c = data.getUint16(offset+i*2, true);
 			putPixel(pixels.data, i*4, c);
 		}
 	}
-	else if( file.type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
+	else if( type === Wipeout.IMAGE_TYPE.PALETTED_8_BPP ) {
 		for( var i = 0; i < entries; i++ ) {
 			var p = data.getUint16(offset+i*2, true);
 
@@ -739,7 +740,7 @@ Wipeout.prototype.readImage = function(buffer) {
 			putPixel(pixels.data, i*8+4, palette[ (p>>8) & 0xff ]);
 		}
 	}
-	else if( file.type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
+	else if( type === Wipeout.IMAGE_TYPE.PALETTED_4_BPP ) {
 		for( var i = 0; i < entries; i++ ) {
 			var p = data.getUint16(offset+i*2, true);
 
@@ -829,7 +830,7 @@ Wipeout.prototype.createScene = function(files, modify) {
 // ----------------------------------------------------------------------------
 // Add a track from TRV, TRF, CMP and TTF files to the scene
 
-Wipeout.prototype.createTrack = function(files) {
+Wipeout.prototype.createTrack = function(files, isWipeout64) {
 	var rawImages = this.unpackImages(files.textures);
 	var images = rawImages.map(this.readImage.bind(this));
 
@@ -837,21 +838,24 @@ Wipeout.prototype.createTrack = function(files) {
 	var indexEntries = files.textureIndex.byteLength / Wipeout.TrackTextureIndex.byteLength;
 	var textureIndex = Wipeout.TrackTextureIndex.readStructs(files.textureIndex, 0, indexEntries);
 
+	const size1 = isWipeout64 ? 64 : 128;
+	const size2 = isWipeout64 ? 64 : 32;
+	const tiles = isWipeout64 ? 1 : 4;
+
 	// Extract the big (near) versions of these textures only. The near 
 	// version is composed of 4x4 32px tiles.
 	var composedImages = [];
-	for( var i = 0; i < textureIndex.length; i++ ) {
-		var idx = textureIndex[i];
+	for( var i = 0; i < (isWipeout64 ? images.length : textureIndex.length); i++ ) {
+		var idx = isWipeout64 ? undefined : textureIndex[i];
 		
 		var composedImage = document.createElement('canvas');
-		composedImage.width = 128;
-		composedImage.height = 128;
+		composedImage.width = size1;
+		composedImage.height = size1;
 		var ctx = composedImage.getContext('2d');
-
-		for( var x = 0; x < 4; x++ ) {
-			for( var y = 0; y < 4; y++ ) {
-				var image = images[idx.near[y * 4 + x]];
-				ctx.drawImage(image, x*32, y*32)
+		for( var x = 0; x < tiles; x++ ) {
+			for( var y = 0; y < tiles; y++ ) {
+				var image = isWipeout64 ? images[i] : images[idx.near[y * 4 + x]];
+				ctx.drawImage(image, x*size2, y*size2)
 			}
 		}
 		composedImages.push(composedImage);
@@ -1018,18 +1022,36 @@ Wipeout.prototype.getSectionPosition = function(section, faces, vertices) {
 
 
 
-Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
+Wipeout.prototype.loadTrack = function( path, loadTEXFile, isWipeout64 ) {
 	var that = this;
-	this.loadBinaries({
-		textures: path+'/SCENE.CMP',
-		objects: path+'/SCENE.PRM'
-	}, function(files) { that.createScene(files); });
 
-	this.loadBinaries({
-		textures: path+'/SKY.CMP',
-		objects: path+'/SKY.PRM'
-	}, function(files) { that.createScene(files, {scale:48}); });
+	if (isWipeout64) {
+		this.loadBinaries({
+			textures: path+'/sceneCom.CMP',
+			objects: path+'/sceneCom.PRM'
+		}, function(files) { that.createScene(files); });
 
+		this.loadBinaries({
+			textures: path+'/sceneSin.CMP',
+			objects: path+'/sceneSin.PRM'
+		}, function(files) { that.createScene(files); });
+
+		/*this.loadBinaries({
+			textures: path+'/sceneMul.CMP',
+			objects: path+'/sceneMul.PRM'
+		}, function(files) { that.createScene(files); });*/
+	}
+	else {
+		this.loadBinaries({
+			textures: path+'/scene.CMP',
+			objects: path+'/scene.PRM'
+		}, function(files) { that.createScene(files); });
+		
+		this.loadBinaries({
+			textures: path+'/SKY.CMP',
+			objects: path+'/SKY.PRM'
+		}, function(files) { that.createScene(files, {scale:48}); });
+	}
 
 	var trackFiles = {
 		textures: path+'/LIBRARY.CMP',
@@ -1043,7 +1065,7 @@ Wipeout.prototype.loadTrack = function( path, loadTEXFile ) {
 		trackFiles.trackTexture = path+'/TRACK.TEX';
 	}
 
-	this.loadBinaries(trackFiles, function(files) { that.createTrack(files); });
+	this.loadBinaries(trackFiles, function(files) { that.createTrack(files, isWipeout64); });
 };
 
 
@@ -1075,4 +1097,14 @@ Wipeout.Tracks.Wipeout2097 = [
 	{path: "WIPEOUT2/TRACK06", name: "Vostok Island", hasTEXFile: true},
 	{path: "WIPEOUT2/TRACK07", name: "Spilskinanke", hasTEXFile: true},
 	{path: "WIPEOUT2/TRACK04", name: "Unfinished Track"},
+];
+
+Wipeout.Tracks.Wipeout64 = [
+	{path: "WIPEOUT64/TRACK01", name: "Klies Bridge", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK02", name: "Qoron IV", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK03", name: "Sokana", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK04", name: "Dyroness", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK05", name: "Machaon II", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK06", name: "Terafumos", isWipeout64: true},
+	{path: "WIPEOUT64/TRACK07", name: "Velocitar", isWipeout64: true}
 ];

@@ -171,7 +171,19 @@
 				}, function(files) { viewer.createScene(files, {scale: 16, space:20000}); });
 			});
 
+			addOption(groupWipeout2097, '', function(){});
 
+			// WipEout 64
+			var groupWipeout64 = addGroup(select, 'WipEout 64');
+
+			for( var i = 0; i < Wipeout.Tracks.Wipeout64.length; i++ ) {
+				var track = Wipeout.Tracks.Wipeout64[i];
+
+				addOption(groupWipeout64, track.name, (function(track, viewer){
+					viewer.clear();
+					viewer.loadTrack(track.path, track.hasTEXFile, track.isWipeout64);
+				}).bind(null, track));
+			}
 
 			// Camera and Music Controls
 			document.getElementById('freeCam').addEventListener('click', function(ev){

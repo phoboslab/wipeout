@@ -2,4 +2,8 @@ WIPEOUT/*
 !WIPEOUT/README.md
 WIPEOUT2/*
 !WIPEOUT2/README.md
+WIPEOUT64/*
+!WIPEOUT64/README.md
 soundtrack/*
+mongoose*
+.vscode/*
