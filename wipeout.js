@@ -8,6 +8,7 @@ var Wipeout = function(containerId, width, height){
 	this.width = width;
 	this.height = height;
 
+	this.previousTime = 0;
 	this.activeCameraMode = 'fly';
 
 	window.addEventListener('resize', this.resize.bind(this), true);
@@ -41,8 +42,7 @@ Wipeout.prototype.clear = function() {
 	this.trackMaterial = null;
 	this.weaponTileMaterial = null;
 	
-	this.startTime = Date.now();
-	this.ticks = 0;
+
 };
 
 Wipeout.prototype.resize = function() {
@@ -58,9 +58,8 @@ Wipeout.prototype.resize = function() {
 	this.renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-Wipeout.prototype.animate = function() {
+Wipeout.prototype.animate = function(time) {
 	requestAnimationFrame( this.animate.bind(this) );
-	var time = Date.now();
 	
 	// Update weapon tile color 
 	if(this.weaponTileMaterial) {
@@ -70,16 +69,11 @@ Wipeout.prototype.animate = function() {
 	// Camera is in fly mode and we have a spline to follow?
 	if( this.activeCameraMode === 'fly' && this.cameraSpline ) {
 	
-		var elapsedTime = time - this.startTime;
-		var elapsedTicks = elapsedTime / 1000 * 60;
+		var deltaTime = time - this.previousTime;
+		this.previousTime = time;
 
-		// Fixed time step loop (60hz)
-		while(this.ticks < elapsedTicks) {
-		
-			this.updateSplineCamera();
-			this.ticks++;
-		}
-		
+		this.updateSplineCamera(time, deltaTime);
+			
 		this.rotateSpritesToCamera(this.splineCamera);
 		this.renderer.render(this.scene, this.splineCamera);
 	}
@@ -92,10 +86,9 @@ Wipeout.prototype.animate = function() {
 	}
 };
 
-Wipeout.prototype.updateSplineCamera = function() {
-	var damping = 0.90;
-	var time = this.ticks * 1000 / 60;
-
+Wipeout.prototype.updateSplineCamera = function(time, deltaTime) {
+	// Framerate independent damping 
+	var damping = Math.pow(0.90, deltaTime * 60 / 1000);
 	var loopTime = this.cameraSpline.points.length * 100;
 
 	// Camera position along the spline
@@ -121,13 +114,13 @@ Wipeout.prototype.updateSplineCamera = function() {
 		? -Math.PI*2 
 		: (roll < -Math.PI) ? Math.PI * 2 : 0;
 
-	this.splineCamera.roll = this.splineCamera.roll * 0.95 + (roll)*0.1;
+	damping = Math.pow(0.95, deltaTime * 60 / 1000);
+	this.splineCamera.roll = this.splineCamera.roll * damping + (roll)*(1-damping);
 	this.splineCamera.up = (new THREE.Vector3(0,1,0)).applyAxisAngle(
 		this.splineCamera.position.clone().sub(this.splineCamera.currentLookAt).normalize(),
 		this.splineCamera.roll * 0.25
 	);
 }
-
 
 Wipeout.prototype.rotateSpritesToCamera = function(camera) {
 	for( var i = 0; i < this.sprites.length; i++ ) {
